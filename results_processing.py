@@ -1,5 +1,5 @@
 from util import is_threshold_failed, get_aggregated_value
-from os import environ
+from os import environ, rename
 from traceback import format_exc
 import requests
 from json import loads
@@ -48,7 +48,11 @@ try:
                    "largest_contentful_paint": [], "cumulative_layout_shift": [], "total_blocking_time": [],
                    "first_visual_change": [], "last_visual_change": [], "time_to_interactive": []}
 
-    html_path = "/user-flow.report.html"
+    format_str = "%d%b%Y_%H:%M:%S"
+    timestamp = datetime.now().strftime(format_str)
+    html_path = f"/{timestamp}_user-flow.report.html"
+    rename("/user-flow.report.html", html_path)
+
     json_path = '/user-flow.report.json'
     # Read and process results json
     with open(json_path, "r") as f:
@@ -59,6 +63,7 @@ try:
             page_thresholds_failed = 0
             file_name = html_path.split("/")[-1]
             if "metrics" in list(step["lhr"]["audits"].keys()):
+                step_type = "page"
                 result = {
                     "requests": 1,
                     "domains": 1,
@@ -87,12 +92,13 @@ try:
                     "time_to_interactive": int(step["lhr"]["audits"]["metrics"]["details"]['items'][0]["interactive"])
                 }
             else:
+                step_type = "action"
                 result = {
                     "requests": 1,
                     "domains": 1,
                     "total": 0,
                     "speed_index": 0,
-                    "time_to_first_byte": int(step["lhr"]["audits"]['server-response-time']['numericValue']),
+                    "time_to_first_byte": 0,
                     "time_to_first_paint": 0,
                     "dom_content_loading": 0,
                     "dom_processing": 0,
@@ -139,7 +145,7 @@ try:
             # Update report with page results
             data = {
                 "name": step["name"],
-                "type": "page",
+                "type": step_type,
                 "identifier": f'{step["lhr"]["requestedUrl"]}@{step["name"]}',
                 "metrics": result,
                 "bucket_name": "reports",
