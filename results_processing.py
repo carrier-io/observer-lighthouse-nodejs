@@ -17,6 +17,7 @@ TOKEN = environ.get("token")
 PATH_TO_FILE = f'/tmp/{TEST}'
 TESTS_PATH = environ.get("tests_path", '/')
 TEST_NAME = environ.get("JOB_NAME")
+ENV = environ.get("ENV")
 
 
 try:
@@ -24,7 +25,7 @@ try:
     res = None
     try:
         res = requests.get(
-            f"{URL}/api/v1/thresholds/{PROJECT_ID}/ui?name={TEST_NAME}&environment=Default&order=asc",
+            f"{URL}/api/v1/thresholds/{PROJECT_ID}/ui?name={TEST_NAME}&environment={ENV}&order=asc",
             headers={'Authorization': f"Bearer {TOKEN}"})
     except Exception:
         print(format_exc())
@@ -130,7 +131,7 @@ try:
 
             # Process thresholds for current page
             for th in page_thresholds:
-                if th["scope"] == f'{json_data["requestedUrl"]}@open':
+                if th["scope"] == f'{step["lhr"]["requestedUrl"]}@{step["name"]}':
                     test_thresholds_total += 1
                     page_thresholds_total += 1
                     if not is_threshold_failed(result.get(th["target"]), th["comparison"], th["metric"]):
@@ -232,7 +233,6 @@ try:
 
             res = requests.post(task_url, json=event, headers={'Authorization': f'bearer {TOKEN}',
                                                                'Content-type': 'application/json'})
-            print(f"Email notification {res.text}")
 
 except Exception:
     print(format_exc())
