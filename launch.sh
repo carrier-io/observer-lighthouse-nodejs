@@ -19,6 +19,6 @@ done
 python3 minio_tests_reader.py
 echo "Scripts downloaded"
 echo "Start test"
-node /$script_name
+node /$script_name $CMD
 echo "Test is done. Results processing..."
 python3 results_processing.py $test_id $reports
