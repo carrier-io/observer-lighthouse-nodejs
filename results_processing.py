@@ -176,6 +176,17 @@ try:
             except Exception:
                 print(format_exc())
 
+            json_path = f"/{timestamp}_user-flow.report.json"
+            rename("/user-flow.report.json", json_path)
+            json_file = {'file': open(json_path, 'rb')}
+            file_name = json_path.split("/")[-1]
+            try:
+                requests.post(f"{URL}/api/v1/artifacts/{PROJECT_ID}/reports/{file_name}",
+                              files=json_file,
+                              headers={'Authorization': f"Bearer {TOKEN}"})
+            except Exception:
+                print(format_exc())
+
     # Process thresholds with scope = all
     for th in all_thresholds:
         test_thresholds_total += 1
