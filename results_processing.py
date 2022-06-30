@@ -54,7 +54,8 @@ try:
     html_path = f"/{timestamp}_user-flow.report.html"
     rename("/user-flow.report.html", html_path)
 
-    json_path = '/user-flow.report.json'
+    json_path = f"/{timestamp}_user-flow.report.json"
+    rename("/user-flow.report.json", json_path)
     # Read and process results json
     with open(json_path, "r") as f:
         json_data = loads(f.read())
@@ -176,8 +177,6 @@ try:
             except Exception:
                 print(format_exc())
 
-            json_path = f"/{timestamp}_user-flow.report.json"
-            rename("/user-flow.report.json", json_path)
             json_file = {'file': open(json_path, 'rb')}
             file_name = json_path.split("/")[-1]
             try:
