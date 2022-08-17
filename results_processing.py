@@ -162,8 +162,8 @@ try:
             index += 1
 
             try:
-                requests.post(f"{URL}/api/v1/observer/{PROJECT_ID}/{REPORT_ID}", json=data,
-                              headers={'Authorization': f"Bearer {TOKEN}"})
+                requests.post(f"{URL}/api/v1/ui_performance/results/{PROJECT_ID}/{REPORT_ID}", json=data,
+                              headers={'Authorization': f"Bearer {TOKEN}", 'Content-type': 'application/json'})
             except Exception:
                 print(format_exc())
 
@@ -171,8 +171,8 @@ try:
             file = {'file': open(html_path, 'rb')}
 
             try:
-                requests.post(f"{URL}/api/v1/artifacts/{PROJECT_ID}/reports/{file_name}",
-                              files=file,
+                requests.post(f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/reports",
+                              files=file, allow_redirects=True,
                               headers={'Authorization': f"Bearer {TOKEN}"})
             except Exception:
                 print(format_exc())
@@ -180,8 +180,8 @@ try:
             json_file = {'file': open(json_path, 'rb')}
             file_name = json_path.split("/")[-1]
             try:
-                requests.post(f"{URL}/api/v1/artifacts/{PROJECT_ID}/reports/{file_name}",
-                              files=json_file,
+                requests.post(f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/reports",
+                              files=json_file, allow_redirects=True,
                               headers={'Authorization': f"Bearer {TOKEN}"})
             except Exception:
                 print(format_exc())
@@ -209,15 +209,15 @@ try:
     report_data = {
         "report_id": REPORT_ID,
         "time": time.strftime('%Y-%m-%d %H:%M:%S'),
-        "status": "Finished",
+        "status": {"status": "Finished", "percentage": 100, "description": "Test is finished"},
         "thresholds_total": test_thresholds_total,
         "thresholds_failed": test_thresholds_failed,
         "exception": exception_message
     }
 
     try:
-        requests.put(f"{URL}/api/v1/observer/{PROJECT_ID}", json=report_data,
-                     headers={'Authorization': f"Bearer {TOKEN}"})
+        requests.put(f"{URL}/api/v1/ui_performance/reports/{PROJECT_ID}", json=report_data,
+                     headers={'Authorization': f"Bearer {TOKEN}", 'Content-type': 'application/json'})
     except Exception:
         print(format_exc())
 
