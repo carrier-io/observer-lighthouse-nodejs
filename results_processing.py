@@ -18,6 +18,7 @@ PATH_TO_FILE = f'/tmp/{TEST}'
 TESTS_PATH = environ.get("tests_path", '/')
 TEST_NAME = environ.get("JOB_NAME")
 ENV = environ.get("ENV")
+QUALITY_GATE = int(environ.get("QUALITY_GATE", 20))
 
 
 try:
@@ -25,7 +26,7 @@ try:
     res = None
     try:
         res = requests.get(
-            f"{URL}/api/v1/thresholds/{PROJECT_ID}/ui?name={TEST_NAME}&environment={ENV}&order=asc",
+            f"{URL}/api/v1/ui_performance/thresholds/{PROJECT_ID}?test={TEST_NAME}&env={ENV}&order=asc",
             headers={'Authorization': f"Bearer {TOKEN}"})
     except Exception:
         print(format_exc())
@@ -121,28 +122,28 @@ try:
             for th in every_thresholds:
                 test_thresholds_total += 1
                 page_thresholds_total += 1
-                if not is_threshold_failed(result.get(th["target"]), th["comparison"], th["metric"]):
+                if not is_threshold_failed(result.get(th["target"]), th["comparison"], th["value"]):
                     print(f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {result.get(th['target'])}"
-                          f" comply with rule {th['comparison']} {th['metric']} [PASSED]")
+                          f" comply with rule {th['comparison']} {th['value']} [PASSED]")
                 else:
                     test_thresholds_failed += 1
                     page_thresholds_failed += 1
                     print(f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {result.get(th['target'])}"
-                          f" violates rule {th['comparison']} {th['metric']} [FAILED]")
+                          f" violates rule {th['comparison']} {th['value']} [FAILED]")
 
             # Process thresholds for current page
             for th in page_thresholds:
                 if th["scope"] == f'{step["lhr"]["requestedUrl"]}@{step["name"]}':
                     test_thresholds_total += 1
                     page_thresholds_total += 1
-                    if not is_threshold_failed(result.get(th["target"]), th["comparison"], th["metric"]):
-                        print(f"Threshold: {th['name']} {th['scope']} {th['target']} {th['aggregation']} value {result.get(th['target'])}"
-                              f" comply with rule {th['comparison']} {th['metric']} [PASSED]")
+                    if not is_threshold_failed(result.get(th["target"]), th["comparison"], th["value"]):
+                        print(f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {result.get(th['target'])}"
+                              f" comply with rule {th['comparison']} {th['value']} [PASSED]")
                     else:
                         test_thresholds_failed += 1
                         page_thresholds_failed += 1
-                        print(f"Threshold: {th['name']} {th['scope']} {th['target']} {th['aggregation']} value {result.get(th['target'])}"
-                              f" violates rule {th['comparison']} {th['metric']} [FAILED]")
+                        print(f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {result.get(th['target'])}"
+                              f" violates rule {th['comparison']} {th['value']} [FAILED]")
 
             # Update report with page results
             data = {
@@ -190,26 +191,32 @@ try:
     for th in all_thresholds:
         test_thresholds_total += 1
         if not is_threshold_failed(get_aggregated_value(th["aggregation"], all_results.get(th["target"])),
-                                   th["comparison"], th["metric"]):
+                                   th["comparison"], th["value"]):
             print(f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {all_results.get(th['target'])}"
-                  f" comply with rule {th['comparison']} {th['metric']} [PASSED]")
+                  f" comply with rule {th['comparison']} {th['value']} [PASSED]")
         else:
             test_thresholds_failed += 1
             print(f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {all_results.get(th['target'])}"
-                  f" violates rule {th['comparison']} {th['metric']} [FAILED]")
+                  f" violates rule {th['comparison']} {th['value']} [FAILED]")
 
     # Finalize report
     time = datetime.now(tz=pytz.timezone("UTC"))
     exception_message = ""
+    status = {"status": "Finished", "percentage": 100, "description": "Test is finished"}
     if test_thresholds_total:
         violated = round(float(test_thresholds_failed / test_thresholds_total) * 100, 2)
         print(f"Failed thresholds: {violated}")
-        if violated > 30:
+        if violated > QUALITY_GATE:
             exception_message = f"Failed thresholds rate more then {violated}%"
+            status = {"status": "Failed", "percentage": 100, "description": f"Missed more then {violated}% thresholds"}
+        else:
+            status = {"status": "Success", "percentage": 100, "description": f"Successfully met more than "
+                                                                             f"{100 - violated}% of thresholds"}
+
     report_data = {
         "report_id": REPORT_ID,
         "time": time.strftime('%Y-%m-%d %H:%M:%S'),
-        "status": {"status": "Finished", "percentage": 100, "description": "Test is finished"},
+        "status": status,
         "thresholds_total": test_thresholds_total,
         "thresholds_failed": test_thresholds_failed,
         "exception": exception_message
