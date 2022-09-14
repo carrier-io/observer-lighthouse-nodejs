@@ -1,4 +1,4 @@
-from util import is_threshold_failed, get_aggregated_value
+from util import is_threshold_failed, get_aggregated_value, update_test_results
 from os import environ, rename
 from traceback import format_exc
 import requests
@@ -61,6 +61,7 @@ try:
     with open(json_path, "r") as f:
         json_data = loads(f.read())
         index = 0
+        records = []
         for step in json_data["steps"]:
             page_thresholds_total = 0
             page_thresholds_failed = 0
@@ -70,6 +71,7 @@ try:
                 result = {
                     "requests": 1,
                     "domains": 1,
+                    "timestamps": timestamp,
                     "total": int(step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedLoad"]),
                     "speed_index": int(step["lhr"]["audits"]["metrics"]["details"]['items'][0]["speedIndex"]),
                     "time_to_first_byte": int(step["lhr"]["audits"]['server-response-time']['numericValue']),
@@ -98,6 +100,7 @@ try:
                 step_type = "action"
                 result = {
                     "requests": 1,
+                    "timestamps": timestamp,
                     "domains": 1,
                     "total": 0,
                     "speed_index": 0,
@@ -149,6 +152,7 @@ try:
             data = {
                 "name": step["name"],
                 "type": step_type,
+                "loop": 1,
                 "identifier": f'{step["lhr"]["requestedUrl"]}@{step["name"]}',
                 "metrics": result,
                 "bucket_name": "reports",
@@ -162,11 +166,7 @@ try:
             }
             index += 1
 
-            try:
-                requests.post(f"{URL}/api/v1/ui_performance/results/{PROJECT_ID}/{REPORT_ID}", json=data,
-                              headers={'Authorization': f"Bearer {TOKEN}", 'Content-type': 'application/json'})
-            except Exception:
-                print(format_exc())
+            records.append(data)
 
             # Send html file with page results
             file = {'file': open(html_path, 'rb')}
@@ -186,7 +186,7 @@ try:
                               headers={'Authorization': f"Bearer {TOKEN}"})
             except Exception:
                 print(format_exc())
-
+        update_test_results(TEST_NAME, URL, PROJECT_ID, TOKEN, REPORT_ID, records)
     # Process thresholds with scope = all
     for th in all_thresholds:
         test_thresholds_total += 1
