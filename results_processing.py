@@ -52,6 +52,7 @@ try:
 
     format_str = "%d%b%Y_%H:%M:%S"
     timestamp = datetime.now().strftime(format_str)
+    _timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     html_path = f"/{timestamp}_user-flow.report.html"
     rename("/user-flow.report.html", html_path)
 
@@ -71,7 +72,7 @@ try:
                 result = {
                     "requests": 1,
                     "domains": 1,
-                    "timestamps": timestamp,
+                    "timestamps": _timestamp,
                     "total": int(step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedLoad"]),
                     "speed_index": int(step["lhr"]["audits"]["metrics"]["details"]['items'][0]["speedIndex"]),
                     "time_to_first_byte": int(step["lhr"]["audits"]['server-response-time']['numericValue']),
@@ -100,7 +101,7 @@ try:
                 step_type = "action"
                 result = {
                     "requests": 1,
-                    "timestamps": timestamp,
+                    "timestamps": _timestamp,
                     "domains": 1,
                     "total": 0,
                     "speed_index": 0,
