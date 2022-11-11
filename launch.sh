@@ -14,11 +14,28 @@ do
     if [[ ${PARAMS[index]} == "-r" ]]; then
         reports=$reports";"${PARAMS[index + 1]}
     fi
+    if [[ ${PARAMS[index]} == "-l" ]]; then
+        loops=${PARAMS[index + 1]}
+    fi
+    if [[ ${PARAMS[index]} == "-a" ]]; then
+        aggregation=${PARAMS[index + 1]}
+    fi
 done
 
 python3 minio_tests_reader.py
 echo "Scripts downloaded"
 echo "Start test"
-node /$script_name $CMD
+
+for (( c=1; c<=$loops; c++ ))
+do
+  export current_loop=$c
+  echo "Start iteration $c"
+  node /$script_name $CMD
+  echo "Processing results for $c iteration"
+  python3 loop_processing.py $test_id $reports
+  echo "Finish iteration $c"
+done
+
+
 echo "Test is done. Results processing..."
-python3 results_processing.py $test_id $reports
+python3 post_processing.py $test_id $reports
