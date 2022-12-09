@@ -7,6 +7,10 @@ from json import loads
 from datetime import datetime
 import pytz
 import sys
+from engagement_reporter import EngagementReporter
+from time import sleep
+
+sleep(30)
 
 PROJECT_ID = environ.get('GALLOPER_PROJECT_ID')
 URL = environ.get('GALLOPER_URL')
@@ -48,6 +52,7 @@ try:
         print(each)
     print("***********************")
 
+    failed_thresholds = []
     all_thresholds: list = list(filter(lambda _th: _th['scope'] == 'all', thresholds))
     every_thresholds: list = list(filter(lambda _th: _th['scope'] == 'every', thresholds))
     page_thresholds: list = list(filter(lambda _th: _th['scope'] != 'every' and _th['scope'] != 'all', thresholds))
@@ -95,6 +100,8 @@ try:
                       f" comply with rule {th['comparison']} {th['value']} [PASSED]")
             else:
                 test_thresholds_failed += 1
+                th['actual_value'] = step_result
+                failed_thresholds.append(th)
                 print(f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {step_result}"
                       f" violates rule {th['comparison']} {th['value']} [FAILED]")
 
@@ -110,6 +117,8 @@ try:
                         f" comply with rule {th['comparison']} {th['value']} [PASSED]")
                 else:
                     test_thresholds_failed += 1
+                    th['actual_value'] = step_result
+                    failed_thresholds.append(th)
                     print(
                         f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {step_result}"
                         f" violates rule {th['comparison']} {th['value']} [FAILED]")
@@ -125,6 +134,8 @@ try:
                   f" comply with rule {th['comparison']} {th['value']} [PASSED]")
         else:
             test_thresholds_failed += 1
+            th['actual_value'] = result
+            failed_thresholds.append(th)
             print(f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {result}"
                   f" violates rule {th['comparison']} {th['value']} [FAILED]")
 
@@ -197,6 +208,29 @@ try:
                 res = requests.post(task_url, json=event, headers={'Authorization': f'bearer {TOKEN}',
                                                                    'Content-type': 'application/json'})
                 print(res)
+
+
+    if integrations and integrations.get("reporters") and "reporter_engagement" in integrations['reporters'].keys():
+        print(failed_thresholds)
+        print('------------------------------')
+        if URL and TOKEN and PROJECT_ID and failed_thresholds:
+            payload = integrations['reporters']['reporter_engagement']
+            print(payload)
+            args = {
+                'thresholds_failed': test_thresholds_failed,
+                'thresholds_total': test_thresholds_total,
+                'test_name': TEST_NAME,
+                'env': ENV,
+            }
+            reporter_url = URL + payload['report_url'] + '/' + PROJECT_ID
+            query_url = URL + payload['query_url'] + '/' + PROJECT_ID
+            reporter = EngagementReporter(
+                reporter_url, query_url,
+                TOKEN, payload['id'],
+                args
+            )
+            reporter.report_findings(failed_thresholds)
+
 
 except Exception:
     print(format_exc())
