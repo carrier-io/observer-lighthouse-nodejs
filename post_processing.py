@@ -211,8 +211,6 @@ try:
 
 
     if integrations and integrations.get("reporters") and "reporter_engagement" in integrations['reporters'].keys():
-        print(failed_thresholds)
-        print('------------------------------')
         if URL and TOKEN and PROJECT_ID and failed_thresholds:
             payload = integrations['reporters']['reporter_engagement']
             print(payload)

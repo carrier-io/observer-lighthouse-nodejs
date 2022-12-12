@@ -16,14 +16,14 @@ class IssuesConnector(object):
 
     def create_issue(self, payload):
         issue_hash = payload['issue_id']
-        # exists = self.search_for_issue(issue_hash)
-        # if exists:
-        #     print(f"The issue with {payload['title']} title already exists")
-        #     return
+        exists = self.search_for_issue(issue_hash)
+        if exists:
+            print(f"The issue with {payload['title']} title already exists")
+            return
         
-        # if exists is None:
-        #     print(f"Unable to connect to query url")
-        #     return
+        if exists is None:
+            print(f"Unable to connect to query url")
+            return
 
         result = post(self.report_url, data=dumps(payload), headers=self.headers)
         return result.content
@@ -31,11 +31,9 @@ class IssuesConnector(object):
     def search_for_issue(self, issue_hash):
         resp = get(self.query_url, params={'source.id': issue_hash, 'status': 'Open'}, headers=self.headers)
         
-        print(resp.status_code)
         if not resp.status_code == 200:
             return None
-        
-        print(resp.json())
+
         data = resp.json()
         if not data['total'] == 0:
             return True
