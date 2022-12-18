@@ -46,31 +46,25 @@ class EngagementReporter:
         self.args = args
         self.issues_connector = IssuesConnector(report_url, query_url, token)
 
-    @staticmethod
-    def _prepare_issue_payload(title, description, severity, engagement_id, issue_hash=None):
+    def _prepare_issue_payload(self, title, description, issue_hash=None):
         return {
             'issue_id': issue_hash,
             'title': title,
             'description': description,
-            'severity': severity,
+            'severity': 'High',
             'project': None,
             'asset': None,
             'type': 'Bug',
-            'engagement': engagement_id,
-            'source': 'ui_performance'
+            'engagement': self.engagement_id,
+            'source': 'ui_performance',
+            'report_id': self.args['report_id']
         }
 
     def report_findings(self, failed_thresholds):
         title = self.get_title()
         hash_code = self.get_hash_code(title)
         description = self.create_description(failed_thresholds)
-        payload = self._prepare_issue_payload(
-            title, 
-            description, 
-            "High", 
-            self.engagement_id,
-            hash_code,
-        )
+        payload = self._prepare_issue_payload(title, description, hash_code)
         self.issues_connector.create_issue(payload)
     
     def get_hash_code(self, title):
