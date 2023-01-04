@@ -6,6 +6,7 @@ from json import loads
 from datetime import datetime
 import pytz
 import sys
+import os
 
 PROJECT_ID = environ.get('GALLOPER_PROJECT_ID')
 URL = environ.get('GALLOPER_URL')
