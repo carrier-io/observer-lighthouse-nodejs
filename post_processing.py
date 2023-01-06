@@ -89,7 +89,7 @@ try:
     print("******************* Summary results (for every and personal threshold")
     print(summary_results)
     print("*******************")
-
+    
     # Process thresholds with scope = every
     for th in every_thresholds:
         for step in summary_results.keys():
@@ -100,8 +100,8 @@ try:
                       f" comply with rule {th['comparison']} {th['value']} [PASSED]")
             else:
                 test_thresholds_failed += 1
-                th['actual_value'] = step_result
-                failed_thresholds.append(th)
+                threshold = dict(actual_value=step_result, page=step, **th)
+                failed_thresholds.append(threshold)
                 print(f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {step_result}"
                       f" violates rule {th['comparison']} {th['value']} [FAILED]")
 
@@ -117,8 +117,8 @@ try:
                         f" comply with rule {th['comparison']} {th['value']} [PASSED]")
                 else:
                     test_thresholds_failed += 1
-                    th['actual_value'] = step_result
-                    failed_thresholds.append(th)
+                    threshold = dict(actual_value=step_result, **th)
+                    failed_thresholds.append(threshold)
                     print(
                         f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {step_result}"
                         f" violates rule {th['comparison']} {th['value']} [FAILED]")
@@ -134,8 +134,8 @@ try:
                   f" comply with rule {th['comparison']} {th['value']} [PASSED]")
         else:
             test_thresholds_failed += 1
-            th['actual_value'] = result
-            failed_thresholds.append(th)
+            threshold = dict(actual_value=result, **th)
+            failed_thresholds.append(threshold)
             print(f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {result}"
                   f" violates rule {th['comparison']} {th['value']} [FAILED]")
 
@@ -213,7 +213,6 @@ try:
     if integrations and integrations.get("reporters") and "reporter_engagement" in integrations['reporters'].keys():
         if URL and TOKEN and PROJECT_ID and failed_thresholds:
             payload = integrations['reporters']['reporter_engagement']
-            print(payload)
             args = {
                 'thresholds_failed': test_thresholds_failed,
                 'thresholds_total': test_thresholds_total,
