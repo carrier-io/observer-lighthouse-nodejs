@@ -10,5 +10,6 @@ COPY minio_tests_reader.py /
 COPY loop_processing.py /
 COPY post_processing.py /
 COPY util.py /
+COPY engagement_reporter.py /
 
 ENTRYPOINT ["/launch.sh"]
