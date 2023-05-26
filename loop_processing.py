@@ -20,6 +20,8 @@ TESTS_PATH = environ.get("tests_path", '/')
 TEST_NAME = environ.get("JOB_NAME")
 CURRENT_LOOP = int(environ.get("current_loop", 1))
 
+integrations = loads(environ.get("integrations", '{}'))
+s3_config = integrations.get('system', {}).get('s3_integration', {})
 
 try:
     if all_results_file_exist():
@@ -129,7 +131,7 @@ try:
 
             try:
                 requests.post(f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/reports",
-                              files=file, allow_redirects=True,
+                              params=s3_config, files=file, allow_redirects=True,
                               headers={'Authorization': f"Bearer {TOKEN}"})
             except Exception:
                 print(format_exc())
@@ -138,7 +140,7 @@ try:
             file_name = json_path.split("/")[-1]
             try:
                 requests.post(f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/reports",
-                              files=json_file, allow_redirects=True,
+                              params=s3_config, files=json_file, allow_redirects=True,
                               headers={'Authorization': f"Bearer {TOKEN}"})
             except Exception:
                 print(format_exc())
