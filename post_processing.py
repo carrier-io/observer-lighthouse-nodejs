@@ -29,6 +29,9 @@ METRICS_MAPPER = {"load_time": "load_time", "dom": "dom_processing", "tti": "tim
                   "tbt": "total_blocking_time", "cls": "cumulative_layout_shift",
                   "fvc": "first_visual_change", "lvc": "last_visual_change"}
 
+integrations = loads(environ.get("integrations", '{}'))
+s3_config = integrations.get('system', {}).get('s3_integration', {})
+
 try:
     # Get thresholds
     res = None
@@ -61,7 +64,7 @@ try:
 
     metrics_list = ["load_time", "dom", "tti", "fcp", "lcp", "cls", "tbt", "fvc", "lvc"]
 
-    upload_test_results(TEST_NAME, URL, PROJECT_ID, TOKEN, REPORT_ID)
+    upload_test_results(TEST_NAME, URL, PROJECT_ID, TOKEN, REPORT_ID, s3_config)
     file_data = get_summary_file_lines(REPORT_ID)
     header = file_data.pop(0).decode('utf-8').replace("\n", "")
 
@@ -170,10 +173,10 @@ try:
         print(format_exc())
 
     # Email notification
-    try:
-        integrations = loads(environ.get("integrations"))
-    except:
-        integrations = None
+    # try:
+    #     integrations = loads(environ.get("integrations"))
+    # except:
+    #     integrations = None
 
 
     if integrations and integrations.get("reporters") and "reporter_email" in integrations["reporters"].keys():

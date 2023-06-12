@@ -39,7 +39,7 @@ def percentile(data, percentile):
     return sorted(data)[int(math.ceil((size * percentile) / 100)) - 1]
 
 
-def upload_test_results(test_name, galloper_url, project_id, token, report_id):
+def upload_test_results(test_name, galloper_url, project_id, token, report_id, s3_config):
     bucket = test_name.replace("_", "").lower()
     import gzip
     import shutil
@@ -47,14 +47,14 @@ def upload_test_results(test_name, galloper_url, project_id, token, report_id):
         with gzip.open(f"/tmp/{report_id}.csv.gz", 'wb') as f_out:
             shutil.copyfileobj(f_in, f_out)
 
-    upload_file(f"{report_id}.csv.gz", "/tmp/", galloper_url, project_id, token, bucket=bucket)
+    upload_file(f"{report_id}.csv.gz", "/tmp/", galloper_url, project_id, token, s3_config, bucket=bucket)
 
 
-def upload_file(file_name, file_path, galloper_url, project_id, token, bucket="reports"):
+def upload_file(file_name, file_path, galloper_url, project_id, token, s3_config, bucket="reports"):
 
     file = {'file': open(f"{file_path}{file_name}", 'rb')}
     try:
-        requests.post(f"{galloper_url}/api/v1/artifacts/artifacts/{project_id}/{bucket}",
+        requests.post(f"{galloper_url}/api/v1/artifacts/artifacts/{project_id}/{bucket}", params=s3_config,
                       files=file, allow_redirects=True, headers={'Authorization': f"Bearer {token}"})
     except Exception:
         print(format_exc())
