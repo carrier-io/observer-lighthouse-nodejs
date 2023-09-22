@@ -1,8 +1,13 @@
 #!/bin/bash
 
+sleep 20
 args=$@
 export reports=""
 IFS=" " read -ra PARAMS <<< "$args"
+echo "START test"
+sleep 20
+
+
 for index in "${!PARAMS[@]}"
 do
     if [[ ${PARAMS[index]} == "-tid" ]]; then
@@ -26,15 +31,14 @@ python3 minio_tests_reader.py
 echo "Scripts downloaded"
 echo "Start test"
 
-for (( c=1; c<=$loops; c++ ))
-do
-  export current_loop=$c
-  echo "Start iteration $c"
-  node /$script_name $custom_cmd
-  echo "Processing results for $c iteration"
-  python3 loop_processing.py $test_id $reports
-  echo "Finish iteration $c"
-done
+
+echo "Start iteration $c"
+#   node /$script_name $custom_cmd
+npm test $script_name -- --loops=$loops --testtime=$(TESTTIME) --regions=$(REGIONS) --url=$(URL) --password=$(PASSWORD)
+
+echo "Processing results for $c iteration"
+python3 loop_processing.py $test_id $reports
+# echo "Finish iteration $c"
 
 
 echo "Test is done. Results processing..."
