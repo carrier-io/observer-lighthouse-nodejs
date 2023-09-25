@@ -1,7 +1,7 @@
 #!/bin/sh
 
 mkdir -p reports
-export reports=""
+export reports="/tmp/reports"
 
 set -- $@ $custom_cmd  # Include custom_cmd in the list of arguments to be parsed
 echo "CMD with value: $custom_cmd"

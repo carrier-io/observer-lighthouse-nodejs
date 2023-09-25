@@ -48,46 +48,57 @@ try:
                 for index, step in enumerate(json_data["steps"]):
                     result, file_name = {}, new_path.split("/")[-1]
 
-                    # Check if 'details' key exists
-                    if "metrics" in step["lhr"]["audits"] and "details" in step["lhr"]["audits"]["metrics"]:
-                        step_type = "page"
-                        metrics = step["lhr"]["audits"]["metrics"]["details"]['items'][0]
-                        result = {
-                            "requests": 1,
-                            "domains": 1,
-                            "timestamps": timestamp,
-                            "load_time": int(step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedLoad"]),
-                            "speed_index": int(step["lhr"]["audits"]["metrics"]["details"]['items'][0]["speedIndex"]),
-                            "time_to_first_byte": int(step["lhr"]["audits"]['server-response-time']['numericValue']),
-                            "time_to_first_paint": int(
-                                step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedFirstPaint"]),
-                            "dom_content_loading": int(
-                                step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedDomContentLoaded"]),
-                            "dom_processing": int(
-                                step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedDomContentLoaded"]),
-                            "first_contentful_paint": int(
-                                step["lhr"]["audits"]["metrics"]["details"]['items'][0]["firstContentfulPaint"]),
-                            "largest_contentful_paint": int(
-                                step["lhr"]["audits"]["metrics"]["details"]['items'][0]["largestContentfulPaint"]),
-                            "cumulative_layout_shift": round(
-                                float(int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["cumulativeLayoutShift"])),
-                                3),
-                            "total_blocking_time": int(
-                                step["lhr"]["audits"]["metrics"]["details"]['items'][0]["totalBlockingTime"]),
-                            "first_visual_change": int(
-                                step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedFirstVisualChange"]),
-                            "last_visual_change": int(
-                                step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedLastVisualChange"]),
-                            "time_to_interactive": int(
-                                step["lhr"]["audits"]["metrics"]["details"]['items'][0]["interactive"])
-                        }
-                    elif "details" not in step["lhr"]["audits"]["metrics"]:
-                        print(f"Skipping step {index} in {filename} due to missing 'details' key.")
-                        continue
+                    # Check if 'metrics' key exists
+                    if "metrics" in step["lhr"]["audits"]:
+                        # Check if 'details' key exists
+                        if "details" in step["lhr"]["audits"]["metrics"]:
+                            step_type = "page"
+                            metrics = step["lhr"]["audits"]["metrics"]["details"]['items'][0]
+                            result = {
+                                "requests": 1,
+                                "domains": 1,
+                                "timestamps": timestamp,
+                                "load_time": int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedLoad"]),
+                                "speed_index": int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["speedIndex"]),
+                                "time_to_first_byte": int(
+                                    step["lhr"]["audits"]['server-response-time']['numericValue']),
+                                "time_to_first_paint": int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedFirstPaint"]),
+                                "dom_content_loading": int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
+                                        "observedDomContentLoaded"]),
+                                "dom_processing": int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
+                                        "observedDomContentLoaded"]),
+                                "first_contentful_paint": int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["firstContentfulPaint"]),
+                                "largest_contentful_paint": int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["largestContentfulPaint"]),
+                                "cumulative_layout_shift": round(
+                                    float(int(
+                                        step["lhr"]["audits"]["metrics"]["details"]['items'][0][
+                                            "cumulativeLayoutShift"])),
+                                    3),
+                                "total_blocking_time": int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["totalBlockingTime"]),
+                                "first_visual_change": int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
+                                        "observedFirstVisualChange"]),
+                                "last_visual_change": int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
+                                        "observedLastVisualChange"]),
+                                "time_to_interactive": int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["interactive"])
+                            }
+                            print(f"Processed Page {step['name']} from {filename}")
+                        else:
+                            print(f"Skipping step {index} {step['name']} in {filename} due to missing 'details' key.")
+                            continue
                     else:
                         step_type = "action"
-                        result = result = {
+                        result = {
                             "requests": 1,
                             "timestamps": timestamp,
                             "domains": 1,
@@ -106,7 +117,7 @@ try:
                             "last_visual_change": 0,
                             "time_to_interactive": 0
                         }
-
+                        print(f"Processed Action {step['name']} from {filename}")
                     for metric in all_results:
                         if (step_type == "action" and metric in ["total_blocking_time", "cumulative_layout_shift"]) \
                                 or (step_type == "page" and metric not in ["total_blocking_time",
@@ -128,12 +139,24 @@ try:
                         "locators": [],
                         "session_id": "session_id"
                     }
-                    print(f"Processed step {step['name']} from {filename}")
                     records.append(data)
+
                     try:
                         requests.post(
                             f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/reports",
-                            params=s3_config, files={'file': open(new_path, 'rb')}, allow_redirects=True,
+                            params=s3_config, files={'file': open(new_path, 'rb')},
+                            allow_redirects=True,
+                            headers={'Authorization': f"Bearer {TOKEN}"}
+                        )
+                        print(f"Uploaded {new_path} to reports.")
+                    except Exception as e:
+                        print(f"Failed to upload {new_path}. Error: {e}")
+
+                    try:
+                        requests.post(
+                            f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/reports",
+                            params=s3_config, files={'file': open(new_path.replace('.json', '.html'), 'rb')},
+                            allow_redirects=True,
                             headers={'Authorization': f"Bearer {TOKEN}"}
                         )
                         print(f"Uploaded {new_path} to reports.")
