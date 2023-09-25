@@ -131,7 +131,7 @@ try:
                         "identifier": f'{step["lhr"]["requestedUrl"]}@{step["name"]}',
                         "metrics": result,
                         "bucket_name": "reports",
-                        "file_name": f"{file_name}#index={index}",
+                        "file_name": f"{file_name.replace('.json', '.html')}#index={index}",
                         "resolution": "auto",
                         "browser_version": "chrome",
                         "thresholds_total": 0,
@@ -141,27 +141,27 @@ try:
                     }
                     records.append(data)
 
-                    try:
-                        requests.post(
-                            f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/reports",
-                            params=s3_config, files={'file': open(new_path, 'rb')},
-                            allow_redirects=True,
-                            headers={'Authorization': f"Bearer {TOKEN}"}
-                        )
-                        print(f"Uploaded {new_path} to reports.")
-                    except Exception as e:
-                        print(f"Failed to upload {new_path}. Error: {e}")
+                try:
+                    requests.post(
+                        f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/reports",
+                        params=s3_config, files={'file': open(new_path, 'rb')},
+                        allow_redirects=True,
+                        headers={'Authorization': f"Bearer {TOKEN}"}
+                    )
+                    print(f"Uploaded {new_path} to reports.")
+                except Exception as e:
+                    print(f"Failed to upload {new_path}. Error: {e}")
 
-                    try:
-                        requests.post(
-                            f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/reports",
-                            params=s3_config, files={'file': open(new_path.replace('.json', '.html'), 'rb')},
-                            allow_redirects=True,
-                            headers={'Authorization': f"Bearer {TOKEN}"}
-                        )
-                        print(f"Uploaded {new_path} to reports.")
-                    except Exception as e:
-                        print(f"Failed to upload {new_path}. Error: {e}")
+                try:
+                    requests.post(
+                        f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/reports",
+                        params=s3_config, files={'file': open(new_path.replace('.json', '.html'), 'rb')},
+                        allow_redirects=True,
+                        headers={'Authorization': f"Bearer {TOKEN}"}
+                    )
+                    print(f"Uploaded {new_path} to reports.")
+                except Exception as e:
+                    print(f"Failed to upload {new_path}. Error: {e}")
 
     update_summary_file(REPORT_ID, records)
     dump_all_results_data(all_results)
