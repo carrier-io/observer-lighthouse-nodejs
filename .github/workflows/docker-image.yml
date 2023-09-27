@@ -1,29 +1,29 @@
-name: Docker Image CI
-
-on:
-  create:
-    tags:
-      - '*'
-  push:
-    branches: [ main ]
-
-jobs:
-
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    -
-        name: Login to DockerHub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKER_USER }}
-          password: ${{ secrets.DOCKER_TOKEN }}
-    -
-       name: Build
-       run: |
-          docker build -t getcarrier/observer-lighthouse-nodejs:latest .
-    -
-       name: Push
-       run: |
-         docker push getcarrier/observer-lighthouse-nodejs:latest
+#name: Docker Image CI
+#
+#on:
+#  create:
+#    tags:
+#      - '*'
+#  push:
+#    branches: [ main ]
+#
+#jobs:
+#
+#  build:
+#    runs-on: ubuntu-latest
+#    steps:
+#    - uses: actions/checkout@v2
+#    -
+#        name: Login to DockerHub
+#        uses: docker/login-action@v1
+#        with:
+#          username: ${{ secrets.DOCKER_USER }}
+#          password: ${{ secrets.DOCKER_TOKEN }}
+#    -
+#       name: Build
+#       run: |
+#          docker build -t getcarrier/observer-lighthouse-nodejs:latest .
+#    -
+#       name: Push
+#       run: |
+#         docker push getcarrier/observer-lighthouse-nodejs:latest
