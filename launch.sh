@@ -31,7 +31,7 @@ do
   export current_loop=$c
   echo "Start iteration $c"
   node /$script_name $custom_cmd
-  echo "Processing results for $c iteration"
+  echo "Processing results for $c iteration!"
   python3 loop_processing.py $test_id $reports
   echo "Finish iteration $c"
 done
