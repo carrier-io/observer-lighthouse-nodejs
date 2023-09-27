@@ -34,6 +34,7 @@ all_results_template = {
 try:
     all_results = load_all_results_data() if all_results_file_exist() else all_results_template
     timestamp = datetime.now().strftime("%d%b%Y_%H:%M:%S")
+    _timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     records = []
 
     print(f"Processing files in 'reports/' directory.")
@@ -62,7 +63,7 @@ try:
                         result = {
                             "requests": 1,
                             "domains": 1,
-                            "timestamps": timestamp,
+                            "timestamps": _timestamp,
                             "load_time": int(
                                 step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedLoad"]),
                             "speed_index": int(
@@ -105,7 +106,7 @@ try:
                     step_type = "action"
                     result = {
                         "requests": 1,
-                        "timestamps": timestamp,
+                        "timestamps": _timestamp,
                         "domains": 1,
                         "load_time": 0,
                         "speed_index": 0,
