@@ -5,7 +5,7 @@ on:
     tags:
       - '*'
   push:
-    branches: [ main ]
+    branches: [ ibombit_updated ]
 
 jobs:
 
@@ -22,8 +22,8 @@ jobs:
     -
        name: Build
        run: |
-          docker build -t getcarrier/observer-lighthouse-nodejs:latest .
+          docker build -t getcarrier/observer-lighthouse-nodejs:latest-alpine .
     -
        name: Push
        run: |
-         docker push getcarrier/observer-lighthouse-nodejs:latest
+         docker push getcarrier/observer-lighthouse-nodejs:latest-alpine
