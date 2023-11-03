@@ -69,8 +69,8 @@ c=1
 while [ $c -le $loops ]; do
     export current_loop=$c
     echo "Start iteration $c"
-    echo "Executing: npm test $script_name with arguments: $npm_args --loops=1"
-    eval "npm test $script_name -- $npm_args --loops=1"  # Use eval to correctly expand npm_args
+    echo "Executing: npm test $script_name with arguments: $npm_args"
+    eval "npm test $script_name -- $npm_args --current_loop=$current_loop"  # Use eval to correctly expand npm_args
     echo "Processing results for $c iteration"
     echo "Executing: python3 loop_processing.py \"$test_id\" \"$reports\""
     python3 loop_processing.py "$test_id" "$reports"
