@@ -6,6 +6,12 @@ export reports="/tmp/reports"
 set -- $@ $custom_cmd  # Include custom_cmd in the list of arguments to be parsed
 echo "CMD with value: $custom_cmd"
 npm_args=""
+region_args=""
+test_id=""
+script_name=""
+loops=1
+aggregation=""
+default_region="en-US" # Set your default region here
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -20,7 +26,7 @@ while [ "$#" -gt 0 ]; do
             shift
             ;;
         -r)
-            reports="$reports;$2"
+            reports="$2"
             echo "Detected -r with value: $2"
             shift
             ;;
@@ -40,7 +46,12 @@ while [ "$#" -gt 0 ]; do
             shift
             ;;
         *)
-            echo "Unrecognized argument: $1"
+            # Append region codes to a space-delimited string
+            if [[ "$1" =~ ^[a-zA-Z]{2}-[A-Z]{2}$ ]]; then
+                region_args="$region_args $1"
+            else
+                echo "Unrecognized argument: $1"
+            fi
             ;;
     esac
     shift
@@ -66,14 +77,22 @@ else
 fi
 
 c=1
+region_args=$(echo $region_args | tr '.' '\n')
 while [ $c -le $loops ]; do
     export current_loop=$c
-    echo "Start iteration $c"
-    echo "Executing: npm test $script_name with arguments: $npm_args"
-    eval "npm test $script_name -- $npm_args --current_loop=$current_loop"  # Use eval to correctly expand npm_args
-    echo "Processing results for $c iteration"
-    echo "Executing: python3 loop_processing.py \"$test_id\" \"$reports\""
-    python3 loop_processing.py "$test_id" "$reports"
+    # Get the region for the current iteration
+    current_region=$(echo "$region_args" | sed -n "${c}p")
+    if [ -z "$current_region" ]; then
+        current_region=$default_region
+    fi
+
+    echo "Start iteration $c for region $current_region"
+    export REGION=$current_region  # Set the REGION environment variable
+    echo "Executing: npm test $script_name with arguments: $npm_args and region: $REGION"
+    eval "npm test $script_name -- $npm_args --current_loop=$current_loop --regions=$REGION"  # Use eval to correctly expand npm_args
+    echo "Processing results for iteration $c in region $REGION"
+    echo "Executing: python3 loop_processing.py \"$test_id\" \"$reports\" \"$REGION\""
+    python3 loop_processing.py "$test_id" "$reports" "$REGION"
     echo "Finish iteration $c"
     c=$((c + 1))
 done
