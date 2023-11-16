@@ -11,7 +11,7 @@ test_id=""
 script_name=""
 loops=1
 aggregation=""
-default_region="en-US" # Set your default region here
+default_region="en-US.de-CH.de-DE.en-CH.en-GB.fr-CH.fr-FR.pt-BR.es-MX.en-CA.zh-HK" # Set your default region here
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -77,7 +77,7 @@ else
 fi
 
 c=1
-region_args=$(echo $region_args | tr '.' '\n')
+region_args=$(echo $default_region | tr '.' '\n')
 while [ $c -le $loops ]; do
     export current_loop=$c
     # Get the region for the current iteration
