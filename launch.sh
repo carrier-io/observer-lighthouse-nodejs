@@ -11,7 +11,7 @@ test_id=""
 script_name=""
 loops=1
 aggregation=""
-default_region="en-US.de-CH.de-DE.en-CH.en-GB.fr-CH.fr-FR.pt-BR.es-MX.en-CA.zh-HK" # Set your default region here
+default_region="en-US" # Set your default region here
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -46,12 +46,8 @@ while [ "$#" -gt 0 ]; do
             shift
             ;;
         *)
-            # Append region codes to a space-delimited string
-            if [[ "$1" =~ ^[a-zA-Z]{2}-[A-Z]{2}$ ]]; then
-                region_args="$region_args $1"
-            else
-                echo "Unrecognized argument: $1"
-            fi
+            echo "Unrecognized argument: $1"
+            shift
             ;;
     esac
     shift
@@ -76,24 +72,48 @@ else
     echo "File /$script_name found. Continuing with the test."
 fi
 
+set -- $custom_cmd
+
+# Process the custom_cmd
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --regions=*)
+            region_args="${1#*=}"
+            echo "Parsed regions from custom_cmd: $region_args"
+            shift
+            ;;
+        *)
+            echo "Unrecognized custom arg: $1"
+            shift
+            ;;
+    esac
+done
+
 c=1
-region_args=$(echo $default_region | tr '.' '\n')
+if [ -z "$region_args" ]; then
+        region_args=$default_region
+fi
+
+region_args=$(echo $region_args | tr '.' '\n')
+last_region=""
 while [ $c -le $loops ]; do
     export current_loop=$c
     # Get the region for the current iteration
     current_region=$(echo "$region_args" | sed -n "${c}p")
-    if [ -z "$current_region" ]; then
-        current_region=$default_region
-    fi
 
     echo "Start iteration $c for region $current_region"
     export REGION=$current_region  # Set the REGION environment variable
+    if [ -z "$REGION" ]; then
+        REGION=$last_region
+    fi
+
     echo "Executing: npm test $script_name with arguments: $npm_args and region: $REGION"
     eval "npm test $script_name -- $npm_args --current_loop=$current_loop --regions=$REGION"  # Use eval to correctly expand npm_args
     echo "Processing results for iteration $c in region $REGION"
     echo "Executing: python3 loop_processing.py \"$test_id\" \"$reports\" \"$REGION\""
     python3 loop_processing.py "$test_id" "$reports" "$REGION"
     echo "Finish iteration $c"
+    last_region=$REGION
     c=$((c + 1))
 done
 echo "Test is done. Results processing..."
