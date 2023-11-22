@@ -1,5 +1,6 @@
 #!/bin/sh
 
+rm -rf reports
 mkdir -p reports
 export reports="/tmp/reports"
 
