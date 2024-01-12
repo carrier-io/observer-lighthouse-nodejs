@@ -1,24 +1,29 @@
-#!/bin/bash
-
-args=$@
+#!/bin/sh
 export reports=""
-IFS=" " read -ra PARAMS <<< "$args"
-for index in "${!PARAMS[@]}"
-do
-    if [[ ${PARAMS[index]} == "-tid" ]]; then
-        test_id=${PARAMS[index + 1]}
-    fi
-    if [[ ${PARAMS[index]} == "-sc" ]]; then
-        script_name=${PARAMS[index + 1]}
-    fi
-    if [[ ${PARAMS[index]} == "-r" ]]; then
-        reports=$reports";"${PARAMS[index + 1]}
-    fi
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -tid)
+            test_id="$2"
+            shift 2
+            ;;
+        -sc)
+            script_name="$2"
+            shift 2
+            ;;
+        -r)
+            reports="${reports};$2"
+            shift 2
+            ;;
+        *)
+            shift
+            ;;
+    esac
 done
 
 python3 minio_tests_reader.py
 echo "Scripts downloaded"
 echo "Start test"
-npx mocha /$script_name $CMD
+npx mocha --timeout 30000 "/$script_name" $CMD
 echo "Test is done. Results processing..."
-python3 results_processing.py $test_id $reports
+python3 results_processing.py "$test_id" "$reports"

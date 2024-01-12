@@ -56,6 +56,26 @@ try:
 
     json_path = f"/{timestamp}_user-flow.report.json"
     rename("/user-flow.report.json", json_path)
+
+    # Send html file with page results
+    file = {'file': open(html_path, 'rb')}
+    file_name = html_path.split("/")[-1]
+    try:
+        requests.post(f"{URL}/api/v1/artifacts/{PROJECT_ID}/reports/{file_name}",
+                      files=file,
+                      headers={'Authorization': f"Bearer {TOKEN}"})
+    except Exception:
+        print(format_exc())
+
+    json_file = {'file': open(json_path, 'rb')}
+    file_name = json_path.split("/")[-1]
+    try:
+        requests.post(f"{URL}/api/v1/artifacts/{PROJECT_ID}/reports/{file_name}",
+                      files=json_file,
+                      headers={'Authorization': f"Bearer {TOKEN}"})
+    except Exception:
+        print(format_exc())
+
     # Read and process results json
     with open(json_path, "r") as f:
         json_data = loads(f.read())
@@ -163,25 +183,6 @@ try:
 
             try:
                 requests.post(f"{URL}/api/v1/observer/{PROJECT_ID}/{REPORT_ID}", json=data,
-                              headers={'Authorization': f"Bearer {TOKEN}"})
-            except Exception:
-                print(format_exc())
-
-            # Send html file with page results
-            file = {'file': open(html_path, 'rb')}
-
-            try:
-                requests.post(f"{URL}/api/v1/artifacts/{PROJECT_ID}/reports/{file_name}",
-                              files=file,
-                              headers={'Authorization': f"Bearer {TOKEN}"})
-            except Exception:
-                print(format_exc())
-
-            json_file = {'file': open(json_path, 'rb')}
-            file_name = json_path.split("/")[-1]
-            try:
-                requests.post(f"{URL}/api/v1/artifacts/{PROJECT_ID}/reports/{file_name}",
-                              files=json_file,
                               headers={'Authorization': f"Bearer {TOKEN}"})
             except Exception:
                 print(format_exc())
