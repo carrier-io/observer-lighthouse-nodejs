@@ -1,9 +1,8 @@
 FROM ibombit/lighthouse-puppeteer-chrome:11.1.0-alpine
 
-RUN apt-get update && apt-get upgrade -y
-RUN apt-get install -y python3-pip
-RUN pip3 install --upgrade 'requests==2.20.0'
-RUN pip3 install --upgrade 'pytz'
+# Update packages and install dependencies
+RUN apk update && apk add --no-cache python3 py3-pip
+RUN pip3 install --upgrade 'requests==2.20.0' 'pytz'
 
 COPY launch.sh /
 COPY minio_tests_reader.py /
