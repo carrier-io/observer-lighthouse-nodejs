@@ -1,4 +1,4 @@
-FROM ibombit/lighthouse-puppeteer-chrome:latest
+FROM ibombit/lighthouse-puppeteer-chrome:11.1.0-alpine
 
 RUN apt-get update && apt-get upgrade -y
 RUN apt-get install -y python3-pip
