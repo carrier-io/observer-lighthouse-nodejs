@@ -109,7 +109,7 @@ while [ $c -le $loops ]; do
     fi
 
     echo "Executing: npm test $script_name with arguments: $npm_args and region: $REGION"
-    eval "npm test $script_name -- $npm_args --current_loop=$current_loop --regions=$REGION"  # Use eval to correctly expand npm_args
+    eval "npx mocha --timeout 10000 $script_name -- $npm_args --current_loop=$current_loop --regions=$REGION"  # Use eval to correctly expand npm_args
     echo "Processing results for iteration $c in region $REGION"
     echo "Executing: python3 loop_processing.py \"$test_id\" \"$reports\" \"$REGION\""
     python3 loop_processing.py "$test_id" "$reports" "$REGION"
