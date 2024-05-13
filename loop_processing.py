@@ -150,7 +150,7 @@ try:
                     "name": step["name"],
                     "type": step_type,
                     "loop": CURRENT_LOOP,
-                    "identifier": f'{step["lhr"]["requestedUrl"]}@{step["name"]}',
+                    "identifier": f'{step["lhr"]["finalDisplayedUrl"]}@{step["name"]}',
                     "metrics": result,
                     "bucket_name": "reports",
                     "file_name": f"{file_name.replace('.json', '.html')}#index={index}",
