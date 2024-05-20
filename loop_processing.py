@@ -57,7 +57,7 @@ try:
             json_data = loads(f.read())
             for index, step in enumerate(json_data["steps"]):
                 result, file_name = {}, json_path.split("/")[-1]
-
+                step["name"] = step["name"].replace(",", "_").replace(" ", "_")
                 # Check if 'metrics' key exists
                 if "metrics" in step["lhr"]["audits"]:
                     # Check if 'details' key exists
@@ -146,14 +146,24 @@ try:
                     if (step_type == "action" and metric in ["total_blocking_time", "cumulative_layout_shift"]) \
                             or (step_type == "page" and metric not in ["total_blocking_time",
                                                                        "cumulative_layout_shift"]):
+                        logger.debug("INSIDE ACTION TYPE")
+                        logger.debug(step["name"])
                         all_results[metric].append(result.get(metric, 0))
-                logger.debug("STEP DETAILS")
-                logger.debug(step["name"])
+
+                if 'requestedUrl' in step["lhr"]:
+                    logger.debug("STEP requestedUrl")
+                    logger.debug(step["lhr"]["requestedUrl"])
+                    url_ = step["lhr"]["requestedUrl"]
+                else:
+                    logger.debug("KeyError: 'requestedUrl'")
+                    logger.debug(step["lhr"]["finalDisplayedUrl"])
+                    url_ = step["lhr"]["finalDisplayedUrl"]
+
                 data = {
                     "name": step["name"].replace(",", "_").replace(" ", "_"),
                     "type": step_type,
                     "loop": CURRENT_LOOP,
-                    "identifier": f'{step["lhr"]["requestedUrl"]}@{step["name"]}',
+                    "identifier": f'{url_}@{step["name"]}',
                     "metrics": result,
                     "bucket_name": "reports",
                     "file_name": f"{file_name.replace('.json', '.html')}#index={index}",
