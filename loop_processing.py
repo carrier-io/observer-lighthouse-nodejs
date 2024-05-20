@@ -150,7 +150,7 @@ try:
                 logger.debug("STEP DETAILS")
                 logger.debug(step["name"])
                 data = {
-                    "name": step["name"].replace(",", "_", " ", "_"),
+                    "name": step["name"].replace(",", "_").replace(" ", "_"),
                     "type": step_type,
                     "loop": CURRENT_LOOP,
                     "identifier": f'{step["lhr"]["requestedUrl"]}@{step["name"]}',
