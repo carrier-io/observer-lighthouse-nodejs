@@ -19,8 +19,6 @@ PROJECT_ID, URL, REPORT_ID, BUCKET, REPORTS_BUCKET, TEST, TOKEN, TESTS_PATH, TES
                                                                                                         env_vars]
 logger.info(f"REPORT_ID: {REPORT_ID}")
 logger.info(f"Loaded environment variables.")
-
-PATH_TO_FILE = f'/tmp/{TEST}'
 CURRENT_LOOP = int(CURRENT_LOOP or 1)
 json_file = ""
 json_path = ""
@@ -42,7 +40,10 @@ try:
     records = []
 
     logger.info(f"Processing files in 'reports/' directory.")
-    for filename in listdir('reports/'):
+    files = listdir('reports/')
+    logger.info(f"Found next files in 'reports/' directory.")
+    logger.info(files)
+    for filename in files:
         file_path = path.join('reports/', filename)
         new_path = f"/tmp/{timestamp}_{filename}"
         rename(file_path, new_path)
@@ -61,10 +62,10 @@ try:
                 if "metrics" in step["lhr"]["audits"]:
                     # Check if 'details' key exists
                     if "details" in step["lhr"]["audits"]["metrics"]:
-                        if "observedLoad" in step["lhr"]["audits"]["metrics"]["details"]['items'][0]:
+                        data_m = step["lhr"]["audits"]["metrics"]["details"]['items'][0]
+                        if "observedLoad" in data_m and "largestContentfulPaint" in data_m:
                             step_type = "page"
                             logger.info(f"Start Processing Page {step['name']} from {json_file}")
-
                             metrics = step["lhr"]["audits"]["metrics"]["details"]['items'][0]
                             result = {
                                 "requests": 1,
@@ -106,10 +107,12 @@ try:
                             }
                             logger.info(f"Processed Page {step['name']} from {json_file}")
                         else:
-                            logger.info(f"Skipping step {index} {step['name']} in {json_file} due to missing 'observedLoad' key.")
+                            logger.info(
+                                f"Skipping step {index} {step['name']} in {json_file} due to missing 'observedLoad' key.")
                             continue
                     else:
-                        logger.info(f"Skipping step {index} {step['name']} in {json_file} due to missing 'details' key.")
+                        logger.info(
+                            f"Skipping step {index} {step['name']} in {json_file} due to missing 'details' key.")
                         continue
                 elif 'cumulative-layout-shift' in step["lhr"]["audits"]:
                     step_type = "action"
@@ -147,10 +150,10 @@ try:
                 logger.debug("STEP DETAILS")
                 logger.debug(step["name"])
                 data = {
-                    "name": step["name"],
+                    "name": step["name"].replace(",", "_", " ", "_"),
                     "type": step_type,
                     "loop": CURRENT_LOOP,
-                    "identifier": f'{step["lhr"]["finalDisplayedUrl"]}@{step["name"]}',
+                    "identifier": f'{step["lhr"]["requestedUrl"]}@{step["name"]}',
                     "metrics": result,
                     "bucket_name": "reports",
                     "file_name": f"{file_name.replace('.json', '.html')}#index={index}",
@@ -188,5 +191,7 @@ try:
         update_summary_file(REPORT_ID, records)
         dump_all_results_data(all_results)
         logger.info(f"Finished processing all files in 'reports/' directory.")
+    else:
+        logger.error(f"NO JSON files found in reports/")
 except Exception as e:
     logger.error(f"An error occurred: {e}")
