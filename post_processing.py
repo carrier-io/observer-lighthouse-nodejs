@@ -10,8 +10,6 @@ import sys
 from engagement_reporter import EngagementReporter
 from time import sleep
 
-sleep(30)
-
 PROJECT_ID = environ.get('GALLOPER_PROJECT_ID')
 URL = environ.get('GALLOPER_URL')
 REPORT_ID = environ.get('REPORT_ID')
