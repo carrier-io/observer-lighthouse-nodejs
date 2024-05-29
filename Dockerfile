@@ -2,7 +2,7 @@ FROM ibombit/lighthouse-puppeteer-chrome:11.7.1-alpine
 
 # Update packages and install dependencies
 RUN apk update && apk add --no-cache python3 py3-pip
-RUN pip3 install --upgrade 'requests==2.20.0' 'pytz'
+RUN pip3 install --upgrade --break-system-packages 'requests==2.20.0' 'pytz'
 
 # Copy scripts into the image
 COPY launch.sh /
