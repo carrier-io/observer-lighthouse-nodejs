@@ -1,5 +1,5 @@
 #!/bin/sh
-
+sleep 30
 rm -rf reports
 mkdir -p reports
 export reports="/tmp/reports"
