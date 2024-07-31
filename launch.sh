@@ -73,6 +73,15 @@ else
     echo "File /$script_name found. Continuing with the test."
 fi
 
+
+# Determine the command based on the content of script_name
+if echo "$script_name" | grep -q "npx mocha"; then
+    test_command="$script_name"
+else
+    test_command="npx mocha --timeout 10000 $script_name"
+fi
+
+
 set -- $custom_cmd
 
 # Process the custom_cmd
@@ -92,7 +101,7 @@ done
 
 c=1
 if [ -z "$region_args" ]; then
-        region_args=$default_region
+    region_args=$default_region
 fi
 
 region_args=$(echo $region_args | tr '.' '\n')
@@ -108,8 +117,8 @@ while [ $c -le $loops ]; do
         REGION=$last_region
     fi
 
-    echo "Executing: npm test $script_name with arguments: $npm_args and region: $REGION"
-    eval "npx mocha --timeout 10000 $script_name -- $npm_args --current_loop=$current_loop --regions=$REGION"  # Use eval to correctly expand npm_args
+    echo "Executing: $test_command with arguments: $npm_args and region: $REGION"
+    eval "$test_command -- $npm_args --current_loop=$current_loop --regions=$REGION"  # Use eval to correctly expand npm_args
     echo "Processing results for iteration $c in region $REGION"
     echo "Executing: python3 loop_processing.py \"$test_id\" \"$reports\" \"$REGION\""
     python3 loop_processing.py "$test_id" "$reports" "$REGION"
