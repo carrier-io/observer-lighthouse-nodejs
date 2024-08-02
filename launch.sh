@@ -73,10 +73,9 @@ else
     echo "File /$script_name found. Continuing with the test."
 fi
 
-
 # Determine the command based on the content of script_name
-if echo "$script_name" | grep -q "npx mocha"; then
-    test_command="$script_name"
+if echo "$custom_cmd" | grep -q "npx mocha"; then
+    test_command="$custom_cmd"
 else
     test_command="npx mocha --timeout 10000 $script_name"
 fi
