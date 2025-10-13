@@ -71,43 +71,91 @@ try:
                             step_type = "page"
                             logger.info(f"Start Processing Page {step['name']} from {json_file}")
                             metrics = step["lhr"]["audits"]["metrics"]["details"]['items'][0]
+                            try:
+                                total_blocking_time = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["totalBlockingTime"])
+                            except:
+                                total_blocking_time = 0
+                            try:
+                                load_time = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedLoad"])
+                            except:
+                                load_time = 0
+                            try:
+                                speed_index = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["speedIndex"])
+                            except:
+                                speed_index = 0
+                            try:
+                                time_to_first_byte = int(
+                                    step["lhr"]["audits"]['server-response-time']['numericValue'])
+                            except:
+                                time_to_first_byte = 0
+                            try:
+                                time_to_first_paint = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedFirstPaint"])
+                            except:
+                                time_to_first_paint = 0
+                            try:
+                                dom_content_loading = int(
+                                        step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedDomContentLoaded"])
+                            except:
+                                dom_content_loading = 0
+                            try:
+                                dom_processing = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedDomContentLoaded"])
+                            except:
+                                dom_processing = 0
+                            try:
+                                first_contentful_paint = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["firstContentfulPaint"])
+                            except:
+                                first_contentful_paint = 0
+                            try:
+                                largest_contentful_paint = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["largestContentfulPaint"])
+                            except:
+                                largest_contentful_paint = 0
+                            try:
+                                cumulative_layout_shift = round(
+                                    float(int(
+                                        step["lhr"]["audits"]["metrics"]["details"]['items'][0][
+                                            "cumulativeLayoutShift"])),
+                                    3)
+                            except:
+                                cumulative_layout_shift = float(0)
+                            try:
+                                first_visual_change = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedFirstVisualChange"])
+                            except:
+                                first_visual_change = 0
+                            try:
+                                last_visual_change = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedLastVisualChange"])
+                            except:
+                                last_visual_change = 0
+                            try:
+                                time_to_interactive = int(
+                                        step["lhr"]["audits"]["metrics"]["details"]['items'][0]["interactive"])
+                            except:
+                                time_to_interactive = 0
                             result = {
                                 "requests": 1,
                                 "domains": 1,
                                 "timestamps": _timestamp,
-                                "load_time": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedLoad"]),
-                                "speed_index": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["speedIndex"]),
-                                "time_to_first_byte": int(
-                                    step["lhr"]["audits"]['server-response-time']['numericValue']),
-                                "time_to_first_paint": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedFirstPaint"]),
-                                "dom_content_loading": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
-                                        "observedDomContentLoaded"]),
-                                "dom_processing": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
-                                        "observedDomContentLoaded"]),
-                                "first_contentful_paint": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["firstContentfulPaint"]),
-                                "largest_contentful_paint": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["largestContentfulPaint"]),
-                                "cumulative_layout_shift": round(
-                                    float(int(
-                                        step["lhr"]["audits"]["metrics"]["details"]['items'][0][
-                                            "cumulativeLayoutShift"])),
-                                    3),
-                                "total_blocking_time": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["totalBlockingTime"]),
-                                "first_visual_change": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
-                                        "observedFirstVisualChange"]),
-                                "last_visual_change": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
-                                        "observedLastVisualChange"]),
-                                "time_to_interactive": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["interactive"])
+                                "load_time": load_time,
+                                "speed_index": speed_index,
+                                "time_to_first_byte": time_to_first_byte,
+                                "time_to_first_paint": time_to_first_paint,
+                                "dom_content_loading": dom_content_loading,
+                                "dom_processing": dom_processing,
+                                "first_contentful_paint": first_contentful_paint,
+                                "largest_contentful_paint": largest_contentful_paint,
+                                "cumulative_layout_shift": cumulative_layout_shift,
+                                "total_blocking_time": total_blocking_time,
+                                "first_visual_change": first_visual_change,
+                                "last_visual_change": last_visual_change,
+                                "time_to_interactive": time_to_interactive
                             }
                             logger.info(f"Processed Page {step['name']} from {json_file}")
                         else:
@@ -125,6 +173,10 @@ try:
                         shift = round(float(step["lhr"]["audits"]['cumulative-layout-shift']['numericValue']), 3)
                     except:
                         logger.info("[INFO] No cumulative-layout-shift")
+                    try:
+                        total_blocking_time = int(step["lhr"]["audits"]['total-blocking-time']['numericValue'])
+                    except:
+                        total_blocking_time = 0
                     result = {
                         "requests": 1,
                         "timestamps": _timestamp,
@@ -138,7 +190,7 @@ try:
                         "first_contentful_paint": 0,
                         "largest_contentful_paint": 0,
                         "cumulative_layout_shift": shift,
-                        "total_blocking_time": int(step["lhr"]["audits"]['total-blocking-time']['numericValue']),
+                        "total_blocking_time": total_blocking_time,
                         "first_visual_change": 0,
                         "last_visual_change": 0,
                         "time_to_interactive": 0
