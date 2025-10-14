@@ -43,6 +43,7 @@ try:
     files = listdir('reports/')
     logger.info(f"Found next files in 'reports/' directory.")
     logger.info(files)
+    csv_files = []  # Track CSV files for upload
     for filename in files:
         file_path = path.join('reports/', filename)
         new_path = f"/tmp/{timestamp}_{filename}"
@@ -51,6 +52,9 @@ try:
         if filename.endswith('.json'):
             json_file = filename
             json_path = new_path
+        elif filename.endswith('.csv'):
+            csv_files.append((filename, new_path))
+            logger.info(f"Found CSV file: {filename}")
     if json_file:
         logger.info(f"Processing JSON file: {json_file}")
         with open(json_path, "r") as f:
@@ -253,7 +257,26 @@ try:
         update_summary_file(REPORT_ID, records)
         dump_all_results_data(all_results)
         logger.info(f"Finished processing all files in 'reports/' directory.")
+    
+    # Upload CSV files if any were found
+    if csv_files:
+        logger.info(f"Processing {len(csv_files)} CSV file(s) for upload.")
+        for csv_filename, csv_path in csv_files:
+            try:
+                requests.post(
+                    f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/reports",
+                    params=s3_config, files={'file': open(csv_path, 'rb')},
+                    allow_redirects=True,
+                    headers={'Authorization': f"Bearer {TOKEN}"}
+                )
+                logger.info(f"Successfully uploaded CSV file: {csv_filename}")
+            except Exception as e:
+                logger.error(f"Failed to upload CSV file {csv_filename}. Error: {e}")
+        logger.info(f"Finished uploading CSV files.")
     else:
-        logger.error(f"NO JSON files found in reports/")
+        logger.info(f"No CSV files found for upload.")
+    
+    if not json_file and not csv_files:
+        logger.error(f"NO JSON or CSV files found in reports/")
 except Exception as e:
     logger.error(f"An error occurred: {e}")
