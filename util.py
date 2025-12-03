@@ -94,3 +94,9 @@ def load_all_results_data():
 def dump_all_results_data(all_results):
     with open("/tmp/all_results.json", "w") as f:
         return f.write(dumps(all_results))
+
+
+def append_browser_version(report_id, browser_version):
+    with open(f"/tmp/{report_id}.csv", 'ab') as f:
+        f.write(f",browser_version,{browser_version},,,,,,,,,,,,,\n".encode('utf-8'))
+    print(f"Browser version appended: {browser_version}")

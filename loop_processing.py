@@ -32,6 +32,7 @@ all_results_template = {
     "largest_contentful_paint": [], "cumulative_layout_shift": [], "total_blocking_time": [],
     "first_visual_change": [], "last_visual_change": [], "time_to_interactive": []
 }
+browser_version = "not_set"
 
 try:
     all_results = load_all_results_data() if all_results_file_exist() else all_results_template
@@ -62,6 +63,18 @@ try:
             for index, step in enumerate(json_data["steps"]):
                 result, file_name = {}, json_path.split("/")[-1]
                 step["name"] = step["name"].replace(",", "_").replace(" ", "_")
+                # Check if 'configSettings' key exists (only if browser_version not yet set)
+                if browser_version == "not_set":
+                    if "configSettings" in step["lhr"]:
+                        # Check if 'emulatedUserAgent' key exists
+                        if "emulatedUserAgent" in step["lhr"]["configSettings"]:
+                            user_agent = step["lhr"]["configSettings"]["emulatedUserAgent"]
+                            # Extract Chrome version
+                            if "Chrome/" in user_agent:
+                                browser_version = user_agent.split("Chrome/")[1].split(" ")[0]
+                            else:
+                                browser_version = user_agent
+                            logger.info(f"Browser version detected: {browser_version}")
                 # Check if 'metrics' key exists
                 if "metrics" in step["lhr"]["audits"]:
                     # Check if 'details' key exists
@@ -256,6 +269,9 @@ try:
         logger.debug("update_summary_file started")
         update_summary_file(REPORT_ID, records)
         dump_all_results_data(all_results)
+        # Append browser version as a separate line
+        if browser_version != "not_set":
+            append_browser_version(REPORT_ID, browser_version)
         logger.info(f"Finished processing all files in 'reports/' directory.")
     
     # Upload CSV files if any were found
