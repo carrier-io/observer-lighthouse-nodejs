@@ -1,4 +1,4 @@
-from util import update_summary_file, all_results_file_exist, load_all_results_data, dump_all_results_data
+from util import update_summary_file, all_results_file_exist, load_all_results_data, dump_all_results_data, append_browser_version
 from os import environ, rename, listdir, path
 import logging
 import requests
@@ -267,11 +267,8 @@ try:
                 except Exception as e:
                     logger.error(f"Failed to upload {json_path}. Error: {e}")
         logger.debug("update_summary_file started")
-        update_summary_file(REPORT_ID, records)
+        update_summary_file(REPORT_ID, records, browser_version)
         dump_all_results_data(all_results)
-        # Append browser version as a separate line
-        if browser_version != "not_set":
-            append_browser_version(REPORT_ID, browser_version)
         logger.info(f"Finished processing all files in 'reports/' directory.")
     
     # Upload CSV files if any were found

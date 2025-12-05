@@ -60,9 +60,9 @@ def upload_file(file_name, file_path, galloper_url, project_id, token, s3_config
         print(format_exc())
 
 
-def update_summary_file(report_id, records):
+def update_summary_file(report_id, records, browser_version="not_set"):
     file_exists = os.path.exists(f"/tmp/{report_id}.csv")
-    header = "timestamp,name,identifier,type,loop,load_time,dom,tti,fcp,lcp,cls,tbt,fvc,lvc,file_name\n".encode('utf-8')
+    header = "timestamp,name,identifier,type,loop,load_time,dom,tti,fcp,lcp,cls,tbt,fvc,lvc,file_name,browser_version\n".encode('utf-8')
     with open(f"/tmp/{report_id}.csv", 'ab+') as f:
         if not file_exists:
             f.write(header)
@@ -74,7 +74,7 @@ def update_summary_file(report_id, records):
                 f"{each['metrics']['largest_contentful_paint']},"
                 f"{each['metrics']['cumulative_layout_shift']},{each['metrics']['total_blocking_time']},"
                 f"{each['metrics']['first_visual_change']},{each['metrics']['last_visual_change']},"
-                f"{each['file_name']}\n".encode('utf-8'))
+                f"{each['file_name']},{browser_version}\n".encode('utf-8'))
 
 
 def get_summary_file_lines(report_id):
@@ -94,9 +94,3 @@ def load_all_results_data():
 def dump_all_results_data(all_results):
     with open("/tmp/all_results.json", "w") as f:
         return f.write(dumps(all_results))
-
-
-def append_browser_version(report_id, browser_version):
-    with open(f"/tmp/{report_id}.csv", 'ab') as f:
-        f.write(f",browser_version,{browser_version},,,,,,,,,,,,,\n".encode('utf-8'))
-    print(f"Browser version appended: {browser_version}")
