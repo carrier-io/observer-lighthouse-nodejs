@@ -1,4 +1,4 @@
-from util import update_summary_file, all_results_file_exist, load_all_results_data, dump_all_results_data
+from util import update_summary_file, all_results_file_exist, load_all_results_data, dump_all_results_data, append_browser_version
 from os import environ, rename, listdir, path
 import logging
 import requests
@@ -32,6 +32,7 @@ all_results_template = {
     "largest_contentful_paint": [], "cumulative_layout_shift": [], "total_blocking_time": [],
     "first_visual_change": [], "last_visual_change": [], "time_to_interactive": []
 }
+browser_version = "not_set"
 
 try:
     all_results = load_all_results_data() if all_results_file_exist() else all_results_template
@@ -62,6 +63,18 @@ try:
             for index, step in enumerate(json_data["steps"]):
                 result, file_name = {}, json_path.split("/")[-1]
                 step["name"] = step["name"].replace(",", "_").replace(" ", "_")
+                # Check if 'configSettings' key exists (only if browser_version not yet set)
+                if browser_version == "not_set":
+                    if "configSettings" in step["lhr"]:
+                        # Check if 'emulatedUserAgent' key exists
+                        if "emulatedUserAgent" in step["lhr"]["configSettings"]:
+                            user_agent = step["lhr"]["configSettings"]["emulatedUserAgent"]
+                            # Extract Chrome version
+                            if "Chrome/" in user_agent:
+                                browser_version = user_agent.split("Chrome/")[1].split(" ")[0]
+                            else:
+                                browser_version = user_agent
+                            logger.info(f"Browser version detected: {browser_version}")
                 # Check if 'metrics' key exists
                 if "metrics" in step["lhr"]["audits"]:
                     # Check if 'details' key exists
@@ -254,7 +267,7 @@ try:
                 except Exception as e:
                     logger.error(f"Failed to upload {json_path}. Error: {e}")
         logger.debug("update_summary_file started")
-        update_summary_file(REPORT_ID, records)
+        update_summary_file(REPORT_ID, records, browser_version)
         dump_all_results_data(all_results)
         logger.info(f"Finished processing all files in 'reports/' directory.")
     

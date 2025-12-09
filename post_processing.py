@@ -83,9 +83,9 @@ try:
                                                    "first_visual_change": [], "last_visual_change": []}
         for metric in metrics_list:
             if metric == "cls":
-                summary_results[each["identifier"]][METRICS_MAPPER.get(metric)].append(float(each[metric]))
+                summary_results[each["identifier"]][METRICS_MAPPER.get(metric)].append(float(each[metric]) if each[metric] else 0.0)
             else:
-                summary_results[each["identifier"]][METRICS_MAPPER.get(metric)].append(int(each[metric]))
+                summary_results[each["identifier"]][METRICS_MAPPER.get(metric)].append(int(each[metric]) if each[metric] else 0)
 
     print("******************* Summary results (for every and personal threshold")
     print(summary_results)
