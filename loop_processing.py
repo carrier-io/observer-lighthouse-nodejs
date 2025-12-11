@@ -30,7 +30,8 @@ all_results_template = {
     "load_time": [], "speed_index": [], "time_to_first_byte": [], "time_to_first_paint": [],
     "dom_content_loading": [], "dom_processing": [], "first_contentful_paint": [],
     "largest_contentful_paint": [], "cumulative_layout_shift": [], "total_blocking_time": [],
-    "first_visual_change": [], "last_visual_change": [], "time_to_interactive": []
+    "first_visual_change": [], "last_visual_change": [], "time_to_interactive": [],
+    "interaction_to_next_paint": []
 }
 browser_version = "not_set"
 
@@ -152,6 +153,11 @@ try:
                                         step["lhr"]["audits"]["metrics"]["details"]['items'][0]["interactive"])
                             except:
                                 time_to_interactive = 0
+                            try:
+                                interaction_to_next_paint = int(
+                                        step["lhr"]["audits"]["metrics"]["details"]['items'][0].get("interactionToNextPaint", 0))
+                            except:
+                                interaction_to_next_paint = 0
                             result = {
                                 "requests": 1,
                                 "domains": 1,
@@ -168,7 +174,8 @@ try:
                                 "total_blocking_time": total_blocking_time,
                                 "first_visual_change": first_visual_change,
                                 "last_visual_change": last_visual_change,
-                                "time_to_interactive": time_to_interactive
+                                "time_to_interactive": time_to_interactive,
+                                "interaction_to_next_paint": interaction_to_next_paint
                             }
                             logger.info(f"Processed Page {step['name']} from {json_file}")
                         else:
@@ -186,10 +193,15 @@ try:
                         shift = round(float(step["lhr"]["audits"]['cumulative-layout-shift']['numericValue']), 3)
                     except:
                         logger.info("[INFO] No cumulative-layout-shift")
+                        shift = 0.0
                     try:
                         total_blocking_time = int(step["lhr"]["audits"]['total-blocking-time']['numericValue'])
                     except:
                         total_blocking_time = 0
+                    try:
+                        interaction_to_next_paint = int(step["lhr"]["audits"].get('interaction-to-next-paint', {}).get('numericValue', 0))
+                    except:
+                        interaction_to_next_paint = 0
                     result = {
                         "requests": 1,
                         "timestamps": _timestamp,
@@ -206,7 +218,8 @@ try:
                         "total_blocking_time": total_blocking_time,
                         "first_visual_change": 0,
                         "last_visual_change": 0,
-                        "time_to_interactive": 0
+                        "time_to_interactive": 0,
+                        "interaction_to_next_paint": interaction_to_next_paint
                     }
                     logger.info(f"Processed Action {step['name']} from {json_file}")
                 else:
