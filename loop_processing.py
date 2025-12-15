@@ -1,4 +1,4 @@
-from util import update_summary_file, all_results_file_exist, load_all_results_data, dump_all_results_data, append_browser_version
+from util import update_summary_file, all_results_file_exist, load_all_results_data, dump_all_results_data
 from os import environ, rename, listdir, path
 import logging
 import requests
@@ -132,9 +132,9 @@ try:
                                 largest_contentful_paint = 0
                             try:
                                 cumulative_layout_shift = round(
-                                    float(int(
+                                    float(
                                         step["lhr"]["audits"]["metrics"]["details"]['items'][0][
-                                            "cumulativeLayoutShift"])),
+                                            "cumulativeLayoutShift"]),
                                     3)
                             except:
                                 cumulative_layout_shift = float(0)
