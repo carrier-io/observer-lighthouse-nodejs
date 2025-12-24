@@ -30,8 +30,10 @@ all_results_template = {
     "load_time": [], "speed_index": [], "time_to_first_byte": [], "time_to_first_paint": [],
     "dom_content_loading": [], "dom_processing": [], "first_contentful_paint": [],
     "largest_contentful_paint": [], "cumulative_layout_shift": [], "total_blocking_time": [],
-    "first_visual_change": [], "last_visual_change": [], "time_to_interactive": []
+    "first_visual_change": [], "last_visual_change": [], "time_to_interactive": [],
+    "interaction_to_next_paint": []
 }
+browser_version = "not_set"
 
 try:
     all_results = load_all_results_data() if all_results_file_exist() else all_results_template
@@ -58,6 +60,18 @@ try:
             for index, step in enumerate(json_data["steps"]):
                 result, file_name = {}, json_path.split("/")[-1]
                 step["name"] = step["name"].replace(",", "_").replace(" ", "_")
+                # Check if 'configSettings' key exists (only if browser_version not yet set)
+                if browser_version == "not_set":
+                    if "configSettings" in step["lhr"]:
+                        # Check if 'emulatedUserAgent' key exists
+                        if "emulatedUserAgent" in step["lhr"]["configSettings"]:
+                            user_agent = step["lhr"]["configSettings"]["emulatedUserAgent"]
+                            # Extract Chrome version
+                            if "Chrome/" in user_agent:
+                                browser_version = user_agent.split("Chrome/")[1].split(" ")[0]
+                            else:
+                                browser_version = user_agent
+                            logger.info(f"Browser version detected: {browser_version}")
                 # Check if 'metrics' key exists
                 if "metrics" in step["lhr"]["audits"]:
                     # Check if 'details' key exists
@@ -67,43 +81,101 @@ try:
                             step_type = "page"
                             logger.info(f"Start Processing Page {step['name']} from {json_file}")
                             metrics = step["lhr"]["audits"]["metrics"]["details"]['items'][0]
+                            try:
+                                total_blocking_time = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["totalBlockingTime"])
+                            except:
+                                total_blocking_time = 0
+                            try:
+                                load_time = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedLoad"])
+                            except:
+                                load_time = 0
+                            try:
+                                speed_index = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["speedIndex"])
+                            except:
+                                speed_index = 0
+                            try:
+                                time_to_first_byte = int(
+                                    step["lhr"]["audits"]['server-response-time']['numericValue'])
+                            except:
+                                time_to_first_byte = 0
+                            try:
+                                time_to_first_paint = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedFirstPaint"])
+                            except:
+                                time_to_first_paint = 0
+                            try:
+                                dom_content_loading = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
+                                        "observedDomContentLoaded"])
+                            except:
+                                dom_content_loading = 0
+                            try:
+                                dom_processing = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
+                                        "observedDomContentLoaded"])
+                            except:
+                                dom_processing = 0
+                            try:
+                                first_contentful_paint = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["firstContentfulPaint"])
+                            except:
+                                first_contentful_paint = 0
+                            try:
+                                largest_contentful_paint = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["largestContentfulPaint"])
+                            except:
+                                largest_contentful_paint = 0
+                            try:
+                                cumulative_layout_shift = round(
+                                    float(int(
+                                        step["lhr"]["audits"]["metrics"]["details"]['items'][0][
+                                            "cumulativeLayoutShift"])),
+                                    3)
+                            except:
+                                cumulative_layout_shift = float(0)
+                            try:
+                                first_visual_change = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
+                                        "observedFirstVisualChange"])
+                            except:
+                                first_visual_change = 0
+                            try:
+                                last_visual_change = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
+                                        "observedLastVisualChange"])
+                            except:
+                                last_visual_change = 0
+                            try:
+                                time_to_interactive = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["interactive"])
+                            except:
+                                time_to_interactive = 0
+                            try:
+                                interaction_to_next_paint = int(
+                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0].get("interactionToNextPaint", 0))
+                            except:
+                                interaction_to_next_paint = 0
                             result = {
                                 "requests": 1,
                                 "domains": 1,
                                 "timestamps": _timestamp,
-                                "load_time": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedLoad"]),
-                                "speed_index": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["speedIndex"]),
-                                "time_to_first_byte": int(
-                                    step["lhr"]["audits"]['server-response-time']['numericValue']),
-                                "time_to_first_paint": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["observedFirstPaint"]),
-                                "dom_content_loading": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
-                                        "observedDomContentLoaded"]),
-                                "dom_processing": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
-                                        "observedDomContentLoaded"]),
-                                "first_contentful_paint": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["firstContentfulPaint"]),
-                                "largest_contentful_paint": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["largestContentfulPaint"]),
-                                "cumulative_layout_shift": round(
-                                    float(int(
-                                        step["lhr"]["audits"]["metrics"]["details"]['items'][0][
-                                            "cumulativeLayoutShift"])),
-                                    3),
-                                "total_blocking_time": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["totalBlockingTime"]),
-                                "first_visual_change": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
-                                        "observedFirstVisualChange"]),
-                                "last_visual_change": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0][
-                                        "observedLastVisualChange"]),
-                                "time_to_interactive": int(
-                                    step["lhr"]["audits"]["metrics"]["details"]['items'][0]["interactive"])
+                                "load_time": load_time,
+                                "speed_index": speed_index,
+                                "time_to_first_byte": time_to_first_byte,
+                                "time_to_first_paint": time_to_first_paint,
+                                "dom_content_loading": dom_content_loading,
+                                "dom_processing": dom_processing,
+                                "first_contentful_paint": first_contentful_paint,
+                                "largest_contentful_paint": largest_contentful_paint,
+                                "cumulative_layout_shift": cumulative_layout_shift,
+                                "total_blocking_time": total_blocking_time,
+                                "first_visual_change": first_visual_change,
+                                "last_visual_change": last_visual_change,
+                                "time_to_interactive": time_to_interactive,
+                                "interaction_to_next_paint": interaction_to_next_paint
                             }
                             logger.info(f"Processed Page {step['name']} from {json_file}")
                         else:
@@ -121,6 +193,15 @@ try:
                         shift = round(float(step["lhr"]["audits"]['cumulative-layout-shift']['numericValue']), 3)
                     except:
                         logger.info("[INFO] No cumulative-layout-shift")
+                        shift = 0.0
+                    try:
+                        total_blocking_time = int(step["lhr"]["audits"]['total-blocking-time']['numericValue'])
+                    except:
+                        total_blocking_time = 0
+                    try:
+                        interaction_to_next_paint = int(step["lhr"]["audits"].get('interaction-to-next-paint', {}).get('numericValue', 0))
+                    except:
+                        interaction_to_next_paint = 0
                     result = {
                         "requests": 1,
                         "timestamps": _timestamp,
@@ -134,10 +215,11 @@ try:
                         "first_contentful_paint": 0,
                         "largest_contentful_paint": 0,
                         "cumulative_layout_shift": shift,
-                        "total_blocking_time": int(step["lhr"]["audits"]['total-blocking-time']['numericValue']),
+                        "total_blocking_time": total_blocking_time,
                         "first_visual_change": 0,
                         "last_visual_change": 0,
-                        "time_to_interactive": 0
+                        "time_to_interactive": 0,
+                        "interaction_to_next_paint": interaction_to_next_paint
                     }
                     logger.info(f"Processed Action {step['name']} from {json_file}")
                 else:
@@ -168,7 +250,7 @@ try:
                     "bucket_name": "reports",
                     "file_name": f"{file_name.replace('.json', '.html')}#index={index}",
                     "resolution": "auto",
-                    "browser_version": "chrome",
+                    "browser_version": browser_version,
                     "thresholds_total": 0,
                     "thresholds_failed": 0,
                     "locators": [],
@@ -177,28 +259,34 @@ try:
                 records.append(data)
 
                 try:
-                    requests.post(
-                        f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/reports",
-                        params=s3_config, files={'file': open(json_path, 'rb')},
-                        allow_redirects=True,
-                        headers={'Authorization': f"Bearer {TOKEN}"}
-                    )
-                    logger.debug(f"Uploaded {json_path} to reports.")
+                    with open(json_path, 'rb') as f:
+                        requests.post(
+                            f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/reports",
+                            params=s3_config, files={'file': f},
+                            allow_redirects=True,
+                            headers={'Authorization': f"Bearer {TOKEN}"}
+                        )
+                        logger.debug(f"Uploaded {json_path} to reports.")
                 except Exception as e:
                     logger.error(f"Failed to upload {json_path}. Error: {e}")
 
-                try:
-                    requests.post(
-                        f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/reports",
-                        params=s3_config, files={'file': open(json_path.replace('.json', '.html'), 'rb')},
-                        allow_redirects=True,
-                        headers={'Authorization': f"Bearer {TOKEN}"}
-                    )
-                    logger.debug(f"Uploaded {json_path} to reports.")
-                except Exception as e:
-                    logger.error(f"Failed to upload {json_path}. Error: {e}")
+                html_path = json_path.replace('.json', '.html')
+                if path.exists(html_path):
+                    try:
+                        with open(html_path, 'rb') as f:
+                            requests.post(
+                                f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/reports",
+                                params=s3_config, files={'file': f},
+                                allow_redirects=True,
+                                headers={'Authorization': f"Bearer {TOKEN}"}
+                            )
+                            logger.debug(f"Uploaded {html_path} to reports.")
+                    except Exception as e:
+                        logger.error(f"Failed to upload {html_path}. Error: {e}")
+                else:
+                    logger.warning(f"HTML file not found: {html_path}, skipping upload.")
         logger.debug("update_summary_file started")
-        update_summary_file(REPORT_ID, records)
+        update_summary_file(REPORT_ID, records, browser_version)
         dump_all_results_data(all_results)
         logger.info(f"Finished processing all files in 'reports/' directory.")
     else:
