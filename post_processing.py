@@ -21,7 +21,6 @@ PATH_TO_FILE = f'/tmp/{TEST}'
 TESTS_PATH = environ.get("tests_path", '/')
 TEST_NAME = environ.get("JOB_NAME")
 ENV = environ.get("ENV")
-QUALITY_GATE = int(environ.get("QUALITY_GATE", 20))
 METRICS_MAPPER = {"load_time": "load_time", "dom": "dom_processing", "tti": "time_to_interactive",
                   "fcp": "first_contentful_paint", "lcp": "largest_contentful_paint",
                   "tbt": "total_blocking_time", "cls": "cumulative_layout_shift",
@@ -256,19 +255,21 @@ try:
         violated = round(float(failed / total) * 100, 2)
         print(f"Failed thresholds: {violated}%")
         
-        # Use missed_thresholds from test configuration, fallback to QUALITY_GATE env variable
-        quality_gate_threshold = missed_thresholds_percent if missed_thresholds_percent is not None else QUALITY_GATE
-        print(f"Quality gate threshold: {quality_gate_threshold}%")
+        # Use missed_thresholds from test configuration (no fallback)
+        quality_gate_threshold = missed_thresholds_percent
         
         # Check if quality gate is configured
         if quality_gate_threshold is None or quality_gate_threshold == 0:
             status = {"status": "Finished", "percentage": 100, "description": f"Quality gate not configured. {failed} of {total} thresholds failed ({violated}%)"}
-            print("[QUALITY GATE] No quality gate threshold configured - test finished without gate evaluation")
-        elif violated > quality_gate_threshold:
-            exception_message = f"Failed thresholds rate {violated}% exceeds quality gate {quality_gate_threshold}%"
-            status = {"status": "Failed", "percentage": 100, "description": f"Missed {violated}% thresholds (gate: {quality_gate_threshold}%)"}
+            print("[QUALITY GATE] Quality gate not configured - test finished without gate evaluation")
+            print(f"[QUALITY GATE] {failed} of {total} thresholds failed ({violated}%)")
         else:
-            status = {"status": "Success", "percentage": 100, "description": f"Successfully met quality gate: {violated}% failed (gate: {quality_gate_threshold}%)"}
+            print(f"Quality gate threshold: {quality_gate_threshold}%")
+            if violated > quality_gate_threshold:
+                exception_message = f"Failed thresholds rate {violated}% exceeds quality gate {quality_gate_threshold}%"
+                status = {"status": "Failed", "percentage": 100, "description": f"Missed {violated}% thresholds (gate: {quality_gate_threshold}%)"}
+            else:
+                status = {"status": "Success", "percentage": 100, "description": f"Successfully met quality gate: {violated}% failed (gate: {quality_gate_threshold}%)"}
 
     report_data = {
         "report_id": REPORT_ID,
