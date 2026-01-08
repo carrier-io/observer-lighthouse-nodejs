@@ -31,6 +31,43 @@ integrations = loads(environ.get("integrations", '{}'))
 s3_config = integrations.get('system', {}).get('s3_integration', {})
 
 try:
+    # Get test configuration with quality gate settings
+    degradation_rate = None
+    missed_thresholds_percent = None
+    try:
+        test_config_url = f"{URL}/api/v1/ui_performance/tests/{PROJECT_ID}"
+        print(f"[HTTP REQUEST] {test_config_url}")
+        test_res = requests.get(
+            test_config_url,
+            headers={'Authorization': f"bearer {TOKEN}"})
+        print(f"[HTTP RESPONSE] Status: {test_res.status_code}")
+        
+        if test_res.status_code == 200:
+            test_data = test_res.json()
+            if isinstance(test_data, dict) and 'rows' in test_data:
+                # Find the test with matching name
+                for test in test_data['rows']:
+                    if test.get('name') == TEST_NAME:
+                        print(f"[TEST CONFIG] Found test configuration for '{TEST_NAME}'")
+                        integrations_config = test.get('integrations', {})
+                        processing_config = integrations_config.get('processing', {})
+                        quality_gate_config = processing_config.get('quality_gate', {})
+                        
+                        degradation_rate = quality_gate_config.get('degradation_rate')
+                        missed_thresholds_percent = quality_gate_config.get('missed_thresholds')
+                        
+                        print(f"[QUALITY GATE] degradation_rate: {degradation_rate}, missed_thresholds: {missed_thresholds_percent}")
+                        break
+                else:
+                    print(f"[TEST CONFIG] Test '{TEST_NAME}' not found in response")
+            else:
+                print(f"[TEST CONFIG] Unexpected response format: {type(test_data)}")
+        else:
+            print(f"[TEST CONFIG] Failed to fetch test configuration: {test_res.status_code}")
+    except Exception as e:
+        print(f"[TEST CONFIG ERROR] Exception during request: {str(e)}")
+        print(format_exc())
+    
     # Get thresholds
     res = None
     try:
@@ -178,35 +215,60 @@ try:
                 threshold_value = threshold.get('value', 0)
                 comparison = threshold.get('comparison', 'lte')
                 
+                adjusted_threshold = threshold_value
+                if degradation_rate is not None and degradation_rate > 0:
+                    # For 'gte' and 'gt' comparisons (fail when value is too high), add tolerance
+                    # For 'lte' and 'lt' comparisons (fail when value is too low), subtract tolerance
+                    tolerance = threshold_value * (degradation_rate / 100.0)
+                    if comparison in ['gte', 'gt']:
+                        adjusted_threshold = threshold_value + tolerance
+                    elif comparison in ['lte', 'lt']:
+                        adjusted_threshold = threshold_value - tolerance
+                
                 # Convert milliseconds to seconds for comparison (except for CLS which is unitless)
                 comparison_value = actual_value if metric_full == 'cumulative_layout_shift' else actual_value / 1000
                 
-                if is_threshold_failed(comparison_value, comparison, threshold_value):
+                if is_threshold_failed(comparison_value, comparison, adjusted_threshold):
                     failed += 1
                     failed_threshold = dict(actual_value=actual_value, page=step_identifier, **threshold)
                     failed_thresholds.append(failed_threshold)
+                    degradation_info = f" (with {degradation_rate}% tolerance: {adjusted_threshold:.3f})" if degradation_rate else ""
                     print(f"Threshold: {threshold['scope']} {threshold['target']} value {comparison_value:.3f}"
-                          f" violates rule {comparison} {threshold_value} [FAILED]")
+                          f" violates rule {comparison} {threshold_value}{degradation_info} [FAILED]")
                 else:
+                    degradation_info = f" (with {degradation_rate}% tolerance: {adjusted_threshold:.3f})" if degradation_rate else ""
                     print(f"Threshold: {threshold['scope']} {threshold['target']} value {comparison_value:.3f}"
-                          f" comply with rule {comparison} {threshold_value} [PASSED]")
+                          f" comply with rule {comparison} {threshold_value}{degradation_info} [PASSED]")
 
     # Load all results for reporting
     all_results = load_all_results_data()
 
     # Finalize report
+    print(f"\n*********************** Threshold Summary")
+    print(f"Total thresholds evaluated: {total}")
+    print(f"Failed thresholds: {failed}")
+    print(f"***********************\n")
+    
     time = datetime.now(tz=pytz.timezone("UTC"))
     exception_message = ""
     status = {"status": "Finished", "percentage": 100, "description": "Test is finished"}
     if total:
         violated = round(float(failed / total) * 100, 2)
-        print(f"Failed thresholds: {violated}")
-        if violated > QUALITY_GATE:
-            exception_message = f"Failed thresholds rate more then {violated}%"
-            status = {"status": "Failed", "percentage": 100, "description": f"Missed more then {violated}% thresholds"}
+        print(f"Failed thresholds: {violated}%")
+        
+        # Use missed_thresholds from test configuration, fallback to QUALITY_GATE env variable
+        quality_gate_threshold = missed_thresholds_percent if missed_thresholds_percent is not None else QUALITY_GATE
+        print(f"Quality gate threshold: {quality_gate_threshold}%")
+        
+        # Check if quality gate is configured
+        if quality_gate_threshold is None or quality_gate_threshold == 0:
+            status = {"status": "Finished", "percentage": 100, "description": f"Quality gate not configured. {failed} of {total} thresholds failed ({violated}%)"}
+            print("[QUALITY GATE] No quality gate threshold configured - test finished without gate evaluation")
+        elif violated > quality_gate_threshold:
+            exception_message = f"Failed thresholds rate {violated}% exceeds quality gate {quality_gate_threshold}%"
+            status = {"status": "Failed", "percentage": 100, "description": f"Missed {violated}% thresholds (gate: {quality_gate_threshold}%)"}
         else:
-            status = {"status": "Success", "percentage": 100, "description": f"Successfully met more than "
-                                                                             f"{100 - violated}% of thresholds"}
+            status = {"status": "Success", "percentage": 100, "description": f"Successfully met quality gate: {violated}% failed (gate: {quality_gate_threshold}%)"}
 
     report_data = {
         "report_id": REPORT_ID,
