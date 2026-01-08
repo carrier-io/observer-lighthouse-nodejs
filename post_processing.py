@@ -250,7 +250,7 @@ try:
     
     time = datetime.now(tz=pytz.timezone("UTC"))
     exception_message = ""
-    status = {"status": "Finished", "percentage": 100, "description": "Test is finished"}
+    status = {"status": "Finished", "percentage": 100, "description": "No thresholds configured for this test"}
     if total:
         violated = round(float(failed / total) * 100, 2)
         print(f"Failed thresholds: {violated}%")
