@@ -21,46 +21,112 @@ PATH_TO_FILE = f'/tmp/{TEST}'
 TESTS_PATH = environ.get("tests_path", '/')
 TEST_NAME = environ.get("JOB_NAME")
 ENV = environ.get("ENV")
-QUALITY_GATE = int(environ.get("QUALITY_GATE", 20))
 METRICS_MAPPER = {"load_time": "load_time", "dom": "dom_processing", "tti": "time_to_interactive",
                   "fcp": "first_contentful_paint", "lcp": "largest_contentful_paint",
                   "tbt": "total_blocking_time", "cls": "cumulative_layout_shift",
-                  "fvc": "first_visual_change", "lvc": "last_visual_change"}
+                  "fvc": "first_visual_change", "lvc": "last_visual_change",
+                  "ttfb": "time_to_first_byte", "inp": "interaction_to_next_paint"}
 
 integrations = loads(environ.get("integrations", '{}'))
 s3_config = integrations.get('system', {}).get('s3_integration', {})
 
 try:
-    # Get thresholds
+    # Fetch test configuration for quality gate settings
+    degradation_rate = None
+    missed_thresholds_percent = None
+    try:
+        test_config_url = f"{URL}/api/v1/ui_performance/tests/{PROJECT_ID}"
+        print(f"[HTTP REQUEST] {test_config_url}")
+        test_res = requests.get(
+            test_config_url,
+            headers={'Authorization': f"bearer {TOKEN}"})
+        print(f"[HTTP RESPONSE] Status: {test_res.status_code}")
+        
+        if test_res.status_code == 200:
+            test_data = test_res.json()
+            if isinstance(test_data, dict) and 'rows' in test_data:
+                for test in test_data['rows']:
+                    if test.get('name') == TEST_NAME:
+                        print(f"[CONFIG] Found configuration for test '{TEST_NAME}'")
+                        integrations_config = test.get('integrations', {})
+                        processing_config = integrations_config.get('processing', {})
+                        quality_gate_config = processing_config.get('quality_gate', {})
+                        
+                        degradation_rate = quality_gate_config.get('degradation_rate')
+                        missed_thresholds_percent = quality_gate_config.get('missed_thresholds')
+                        
+                        print(f"[CONFIG] Quality gate: degradation_rate={degradation_rate}, missed_thresholds={missed_thresholds_percent}")
+                        break
+                else:
+                    print(f"[CONFIG] Test '{TEST_NAME}' not found in response")
+            else:
+                print(f"[CONFIG] Unexpected response format: {type(test_data)}")
+        else:
+            print(f"[CONFIG] Failed to fetch configuration: status {test_res.status_code}")
+    except Exception as e:
+        print(f"[CONFIG] Error: {str(e)}")
+        print(format_exc())
+    
+    # Fetch thresholds from API
     res = None
     try:
+        threshold_url = f"{URL}/api/v1/ui_performance/thresholds/{PROJECT_ID}?report_id={REPORT_ID}"
+        print(f"[HTTP REQUEST] {threshold_url}")
         res = requests.get(
-            f"{URL}/api/v1/ui_performance/thresholds/{PROJECT_ID}?test={TEST_NAME}&env={ENV}&order=asc",
-            headers={'Authorization': f"Bearer {TOKEN}"})
-    except Exception:
+            threshold_url,
+            headers={'Authorization': f"bearer {TOKEN}"})
+        print(f"[HTTP RESPONSE] Status: {res.status_code}")
+    except Exception as e:
+        print(f"[HTTP ERROR] Exception during request: {str(e)}")
         print(format_exc())
 
     if not res or res.status_code != 200:
+        if res:
+            print(f"[THRESHOLDS] API returned status: {res.status_code}")
+            if res.status_code == 403:
+                print(f"[THRESHOLDS] Access forbidden - check token permissions")
+            elif res.status_code == 404:
+                print(f"[THRESHOLDS] Report not found")
+            if res.text:
+                print(f"[THRESHOLDS] Response: {res.text[:500]}")
+        else:
+            print(f"[THRESHOLDS] No response from API")
         thresholds = []
+    else:
+        try:
+            response_data = res.json()
+            # Handle response format: could be a dict with 'rows' or a list
+            if isinstance(response_data, dict) and 'rows' in response_data:
+                thresholds = response_data['rows']
+                print(f"[THRESHOLDS] Fetched {len(thresholds)} thresholds from API (dict with 'rows')")
+            elif isinstance(response_data, list):
+                thresholds = response_data
+                print(f"[THRESHOLDS] Fetched {len(thresholds)} thresholds from API (list)")
+            else:
+                thresholds = []
+                print(f"[THRESHOLDS] Unexpected response format: {type(response_data)}")
+        except ValueError:
+            thresholds = []
+            print(f"[THRESHOLDS] Failed to parse JSON response")
+    
+    # Filter thresholds by test name and environment (like reference implementation)
+    filtered_thresholds = [
+        th for th in thresholds
+        if th.get('test') == TEST_NAME and th.get('environment') == ENV
+    ]
+    print(f"[THRESHOLDS] Filtered to {len(filtered_thresholds)} for test='{TEST_NAME}', env='{ENV}'")
+    thresholds = filtered_thresholds
 
-    try:
-        thresholds = res.json()
-    except ValueError:
-        thresholds = []
-
-    print("*********************** Thresholds")
+    print("\n===== Thresholds =====")
     for each in thresholds:
         print(each)
-    print("***********************")
+    print("======================\n")
 
     failed_thresholds = []
-    all_thresholds: list = list(filter(lambda _th: _th['scope'] == 'all', thresholds))
-    every_thresholds: list = list(filter(lambda _th: _th['scope'] == 'every', thresholds))
-    page_thresholds: list = list(filter(lambda _th: _th['scope'] != 'every' and _th['scope'] != 'all', thresholds))
-    test_thresholds_total = 0
-    test_thresholds_failed = 0
+    total = 0
+    failed = 0
 
-    metrics_list = ["load_time", "dom", "tti", "fcp", "lcp", "cls", "tbt", "fvc", "lvc"]
+    metrics_list = ["load_time", "dom", "tti", "fcp", "lcp", "cls", "tbt", "fvc", "lvc", "ttfb", "inp"]
 
     upload_test_results(TEST_NAME, URL, PROJECT_ID, TOKEN, REPORT_ID, s3_config)
     file_data = get_summary_file_lines(REPORT_ID)
@@ -80,87 +146,120 @@ try:
             summary_results[each["identifier"]] = {"load_time": [], "dom_processing": [], "time_to_interactive": [],
                                                    "first_contentful_paint": [], "largest_contentful_paint": [],
                                                    "total_blocking_time": [], "cumulative_layout_shift": [],
-                                                   "first_visual_change": [], "last_visual_change": []}
+                                                   "first_visual_change": [], "last_visual_change": [],
+                                                   "time_to_first_byte": [], "interaction_to_next_paint": []}
         for metric in metrics_list:
             if metric == "cls":
                 summary_results[each["identifier"]][METRICS_MAPPER.get(metric)].append(float(each[metric]) if each[metric] else 0.0)
             else:
                 summary_results[each["identifier"]][METRICS_MAPPER.get(metric)].append(int(each[metric]) if each[metric] else 0)
 
-    print("******************* Summary results (for every and personal threshold")
+    print("\n===== Summary Results =====")
     print(summary_results)
-    print("*******************")
+    print("===========================\n")
     
-    # Process thresholds with scope = every
-    for th in every_thresholds:
-        for step in summary_results.keys():
-            test_thresholds_total += 1
-            step_result = get_aggregated_value(th["aggregation"], summary_results[step].get(th["target"]))
-            if not is_threshold_failed(step_result, th["comparison"], th["value"]):
-                print(f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {step_result}"
-                      f" comply with rule {th['comparison']} {th['value']} [PASSED]")
-            else:
-                test_thresholds_failed += 1
-                threshold = dict(actual_value=step_result, page=step, **th)
-                failed_thresholds.append(threshold)
-                print(f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {step_result}"
-                      f" violates rule {th['comparison']} {th['value']} [FAILED]")
-
-    # Process thresholds for current page
-    for th in page_thresholds:
-        for step in summary_results.keys():
-            if th["scope"] == step:
-                test_thresholds_total += 1
-                step_result = get_aggregated_value(th["aggregation"], summary_results[step].get(th["target"]))
-                if not is_threshold_failed(step_result, th["comparison"], th["value"]):
-                    print(
-                        f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {step_result}"
-                        f" comply with rule {th['comparison']} {th['value']} [PASSED]")
+    # Group thresholds by scope
+    thresholds_grouped = {}
+    for th in thresholds:
+        scope = th.get('scope')
+        if scope not in thresholds_grouped:
+            thresholds_grouped[scope] = []
+        thresholds_grouped[scope].append(th)
+    
+    def get_result_type(identifier):
+        if '@[T]_' in identifier or '@[A]_' in identifier:
+            return 'action'
+        return 'page'
+    
+    # Evaluate thresholds against results
+    for step_identifier, step_data in summary_results.items():
+        result_type = get_result_type(step_identifier)
+        
+        applicable_thresholds = (
+            thresholds_grouped.get('every', []) + 
+            thresholds_grouped.get(step_identifier, []) +
+            thresholds_grouped.get('all', [])
+        )
+        
+        metrics_to_check = ["load_time", "dom", "tti", "fcp", "lcp", "cls", "tbt", "fvc", "lvc", "ttfb", "inp"] \
+            if result_type == "page" else ["cls", "tbt", "inp"]
+        
+        for metric_short in metrics_to_check:
+            metric_full = METRICS_MAPPER.get(metric_short, metric_short)
+            if metric_full not in step_data:
+                continue
+            
+            metric_thresholds = [th for th in applicable_thresholds if th.get('target') == metric_full]
+            if not metric_thresholds:
+                continue
+            
+            actual_value = get_aggregated_value('max', step_data.get(metric_full, []))
+            
+            for threshold in metric_thresholds:
+                total += 1
+                threshold_value = threshold.get('value', 0)
+                comparison = threshold.get('comparison', 'lte')
+                
+                # Apply degradation rate tolerance if configured
+                adjusted_threshold = threshold_value
+                if degradation_rate is not None and degradation_rate > 0:
+                    tolerance = threshold_value * (degradation_rate / 100.0)
+                    if comparison in ['gte', 'gt']:
+                        adjusted_threshold = threshold_value + tolerance
+                    elif comparison in ['lte', 'lt']:
+                        adjusted_threshold = threshold_value - tolerance
+                
+                # Convert milliseconds to seconds (except CLS)
+                comparison_value = actual_value if metric_full == 'cumulative_layout_shift' else actual_value / 1000
+                
+                if is_threshold_failed(comparison_value, comparison, adjusted_threshold):
+                    failed += 1
+                    failed_threshold = dict(actual_value=actual_value, page=step_identifier, **threshold)
+                    failed_thresholds.append(failed_threshold)
+                    degradation_info = f" (tolerance: {adjusted_threshold:.3f})" if degradation_rate else ""
+                    print(f"[THRESHOLD] {threshold['scope']} {threshold['target']} = {comparison_value:.3f} "
+                          f"violates {comparison} {threshold_value}{degradation_info} [FAILED]")
                 else:
-                    test_thresholds_failed += 1
-                    threshold = dict(actual_value=step_result, **th)
-                    failed_thresholds.append(threshold)
-                    print(
-                        f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {step_result}"
-                        f" violates rule {th['comparison']} {th['value']} [FAILED]")
+                    degradation_info = f" (tolerance: {adjusted_threshold:.3f})" if degradation_rate else ""
+                    print(f"[THRESHOLD] {threshold['scope']} {threshold['target']} = {comparison_value:.3f} "
+                          f"complies {comparison} {threshold_value}{degradation_info} [PASSED]")
 
+    # Load all results for reporting
     all_results = load_all_results_data()
 
-    # Process thresholds with scope = all
-    for th in all_thresholds:
-        test_thresholds_total += 1
-        result = get_aggregated_value(th["aggregation"], all_results.get(th["target"]))
-        if not is_threshold_failed(result, th["comparison"], th["value"]):
-            print(f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {result}"
-                  f" comply with rule {th['comparison']} {th['value']} [PASSED]")
-        else:
-            test_thresholds_failed += 1
-            threshold = dict(actual_value=result, **th)
-            failed_thresholds.append(threshold)
-            print(f"Threshold: {th['scope']} {th['target']} {th['aggregation']} value {result}"
-                  f" violates rule {th['comparison']} {th['value']} [FAILED]")
-
-    # Finalize report
+    print(f"\n===== Threshold Summary =====")
+    print(f"Total evaluated: {total}")
+    print(f"Failed: {failed}")
+    print(f"=============================\n")
+    
     time = datetime.now(tz=pytz.timezone("UTC"))
     exception_message = ""
-    status = {"status": "Finished", "percentage": 100, "description": "Test is finished"}
-    if test_thresholds_total:
-        violated = round(float(test_thresholds_failed / test_thresholds_total) * 100, 2)
-        print(f"Failed thresholds: {violated}")
-        if violated > QUALITY_GATE:
-            exception_message = f"Failed thresholds rate more then {violated}%"
-            status = {"status": "Failed", "percentage": 100, "description": f"Missed more then {violated}% thresholds"}
+    status = {"status": "Finished", "percentage": 100, "description": "No thresholds configured for this test"}
+    if total:
+        violated = round(float(failed / total) * 100, 2)
+        print(f"[GATE] Failed rate: {violated}%")
+        
+        quality_gate_threshold = missed_thresholds_percent
+        
+        if quality_gate_threshold is None or quality_gate_threshold == 0:
+            status = {"status": "Finished", "percentage": 100, "description": f"Quality gate not configured. {failed} of {total} thresholds failed ({violated}%)"}
+            print(f"[GATE] Quality gate not configured")
+            print(f"[GATE] {failed} of {total} thresholds failed ({violated}%)")
         else:
-            status = {"status": "Success", "percentage": 100, "description": f"Successfully met more than "
-                                                                             f"{100 - violated}% of thresholds"}
+            print(f"[GATE] Threshold: {quality_gate_threshold}%")
+            if violated > quality_gate_threshold:
+                exception_message = f"Failed thresholds rate {violated}% exceeds quality gate {quality_gate_threshold}%"
+                status = {"status": "Failed", "percentage": 100, "description": f"Missed {violated}% thresholds (gate: {quality_gate_threshold}%)"}
+            else:
+                status = {"status": "Success", "percentage": 100, "description": f"Successfully met quality gate: {violated}% failed (gate: {quality_gate_threshold}%)"}
 
     report_data = {
         "report_id": REPORT_ID,
         "time": time.strftime('%Y-%m-%d %H:%M:%S'),
         "status": status,
         "results": all_results,
-        "thresholds_total": test_thresholds_total,
-        "thresholds_failed": test_thresholds_failed,
+        "thresholds_total": total,
+        "thresholds_failed": failed,
         "exception": exception_message
     }
 
@@ -170,13 +269,7 @@ try:
     except Exception:
         print(format_exc())
 
-    # Email notification
-    # try:
-    #     integrations = loads(environ.get("integrations"))
-    # except:
-    #     integrations = None
-
-
+    # Send email notification if configured
     if integrations and integrations.get("reporters") and "reporter_email" in integrations["reporters"].keys():
         email_notification_id = integrations["reporters"]["reporter_email"].get("task_id")
         if email_notification_id:
@@ -211,8 +304,8 @@ try:
         if URL and TOKEN and PROJECT_ID and failed_thresholds:
             payload = integrations['reporters']['reporter_engagement']
             args = {
-                'thresholds_failed': test_thresholds_failed,
-                'thresholds_total': test_thresholds_total,
+                'thresholds_failed': failed,
+                'thresholds_total': total,
                 'test_name': TEST_NAME,
                 'env': ENV,
                 'report_id': REPORT_ID,
