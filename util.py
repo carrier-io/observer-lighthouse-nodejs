@@ -6,17 +6,15 @@ from json import loads, dumps
 
 
 def is_threshold_failed(actual, comparison, expected):
-    if comparison == 'gte':
-        return actual >= expected
-    elif comparison == 'lte':
-        return actual <= expected
-    elif comparison == 'gt':
-        return actual > expected
-    elif comparison == 'lt':
-        return actual < expected
-    elif comparison == 'eq':
-        return actual == expected
-    return False
+    """Check if a threshold is violated based on comparison operator."""
+    comparison_map = {
+        'gte': lambda a, t: a >= t,
+        'lte': lambda a, t: a <= t,
+        'gt': lambda a, t: a > t,
+        'lt': lambda a, t: a < t,
+        'eq': lambda a, t: a == t
+    }
+    return comparison_map.get(comparison, lambda a, t: False)(actual, expected)
 
 
 def get_aggregated_value(aggregation, metrics):
