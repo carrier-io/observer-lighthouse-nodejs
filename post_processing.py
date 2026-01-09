@@ -31,7 +31,7 @@ integrations = loads(environ.get("integrations", '{}'))
 s3_config = integrations.get('system', {}).get('s3_integration', {})
 
 try:
-    # Get test configuration with quality gate settings
+    # Fetch test configuration for quality gate settings
     degradation_rate = None
     missed_thresholds_percent = None
     try:
@@ -45,10 +45,9 @@ try:
         if test_res.status_code == 200:
             test_data = test_res.json()
             if isinstance(test_data, dict) and 'rows' in test_data:
-                # Find the test with matching name
                 for test in test_data['rows']:
                     if test.get('name') == TEST_NAME:
-                        print(f"[TEST CONFIG] Found test configuration for '{TEST_NAME}'")
+                        print(f"[CONFIG] Found configuration for test '{TEST_NAME}'")
                         integrations_config = test.get('integrations', {})
                         processing_config = integrations_config.get('processing', {})
                         quality_gate_config = processing_config.get('quality_gate', {})
@@ -56,19 +55,19 @@ try:
                         degradation_rate = quality_gate_config.get('degradation_rate')
                         missed_thresholds_percent = quality_gate_config.get('missed_thresholds')
                         
-                        print(f"[QUALITY GATE] degradation_rate: {degradation_rate}, missed_thresholds: {missed_thresholds_percent}")
+                        print(f"[CONFIG] Quality gate: degradation_rate={degradation_rate}, missed_thresholds={missed_thresholds_percent}")
                         break
                 else:
-                    print(f"[TEST CONFIG] Test '{TEST_NAME}' not found in response")
+                    print(f"[CONFIG] Test '{TEST_NAME}' not found in response")
             else:
-                print(f"[TEST CONFIG] Unexpected response format: {type(test_data)}")
+                print(f"[CONFIG] Unexpected response format: {type(test_data)}")
         else:
-            print(f"[TEST CONFIG] Failed to fetch test configuration: {test_res.status_code}")
+            print(f"[CONFIG] Failed to fetch configuration: status {test_res.status_code}")
     except Exception as e:
-        print(f"[TEST CONFIG ERROR] Exception during request: {str(e)}")
+        print(f"[CONFIG] Error: {str(e)}")
         print(format_exc())
     
-    # Get thresholds
+    # Fetch thresholds from API
     res = None
     try:
         threshold_url = f"{URL}/api/v1/ui_performance/thresholds/{PROJECT_ID}?report_id={REPORT_ID}"
@@ -115,17 +114,15 @@ try:
         th for th in thresholds
         if th.get('test') == TEST_NAME and th.get('environment') == ENV
     ]
-    print(f"[THRESHOLDS] After filtering by test='{TEST_NAME}' and env='{ENV}': {len(filtered_thresholds)} thresholds")
+    print(f"[THRESHOLDS] Filtered to {len(filtered_thresholds)} for test='{TEST_NAME}', env='{ENV}'")
     thresholds = filtered_thresholds
 
-    print("*********************** Thresholds")
+    print("\n===== Thresholds =====")
     for each in thresholds:
         print(each)
-    print("***********************")
+    print("======================\n")
 
     failed_thresholds = []
-    
-    # Initialize counters - count metric evaluations like ui_email_notification
     total = 0
     failed = 0
 
@@ -157,11 +154,11 @@ try:
             else:
                 summary_results[each["identifier"]][METRICS_MAPPER.get(metric)].append(int(each[metric]) if each[metric] else 0)
 
-    print("******************* Summary results (for every and personal threshold")
+    print("\n===== Summary Results =====")
     print(summary_results)
-    print("*******************")
+    print("===========================\n")
     
-    # Group thresholds by scope for easier lookup (like ui_email_notification.py)
+    # Group thresholds by scope
     thresholds_grouped = {}
     for th in thresholds:
         scope = th.get('scope')
@@ -169,104 +166,87 @@ try:
             thresholds_grouped[scope] = []
         thresholds_grouped[scope].append(th)
     
-    # Determine result type based on identifier
     def get_result_type(identifier):
-        # Actions have @ symbol after the domain
         if '@[T]_' in identifier or '@[A]_' in identifier:
             return 'action'
         return 'page'
     
-    # Process thresholds using the ui_email_notification approach:
-    # Iterate over results, then over metrics, checking applicable thresholds
+    # Evaluate thresholds against results
     for step_identifier, step_data in summary_results.items():
         result_type = get_result_type(step_identifier)
         
-        # Get applicable thresholds for this step
         applicable_thresholds = (
             thresholds_grouped.get('every', []) + 
             thresholds_grouped.get(step_identifier, []) +
             thresholds_grouped.get('all', [])
         )
         
-        # Determine which metrics to check based on result type
         metrics_to_check = ["load_time", "dom", "tti", "fcp", "lcp", "cls", "tbt", "fvc", "lvc", "ttfb", "inp"] \
             if result_type == "page" else ["cls", "tbt", "inp"]
         
-        # Check each metric
         for metric_short in metrics_to_check:
-            # Map short name to full name
             metric_full = METRICS_MAPPER.get(metric_short, metric_short)
-            
-            # Skip if this step doesn't have this metric
             if metric_full not in step_data:
                 continue
             
-            # Find thresholds for this metric
             metric_thresholds = [th for th in applicable_thresholds if th.get('target') == metric_full]
-            
             if not metric_thresholds:
                 continue
             
-            # Get the actual value
             actual_value = get_aggregated_value('max', step_data.get(metric_full, []))
             
-            # Check against ALL thresholds for this metric (multiple thresholds per metric are possible)
             for threshold in metric_thresholds:
                 total += 1
                 threshold_value = threshold.get('value', 0)
                 comparison = threshold.get('comparison', 'lte')
                 
+                # Apply degradation rate tolerance if configured
                 adjusted_threshold = threshold_value
                 if degradation_rate is not None and degradation_rate > 0:
-                    # For 'gte' and 'gt' comparisons (fail when value is too high), add tolerance
-                    # For 'lte' and 'lt' comparisons (fail when value is too low), subtract tolerance
                     tolerance = threshold_value * (degradation_rate / 100.0)
                     if comparison in ['gte', 'gt']:
                         adjusted_threshold = threshold_value + tolerance
                     elif comparison in ['lte', 'lt']:
                         adjusted_threshold = threshold_value - tolerance
                 
-                # Convert milliseconds to seconds for comparison (except for CLS which is unitless)
+                # Convert milliseconds to seconds (except CLS)
                 comparison_value = actual_value if metric_full == 'cumulative_layout_shift' else actual_value / 1000
                 
                 if is_threshold_failed(comparison_value, comparison, adjusted_threshold):
                     failed += 1
                     failed_threshold = dict(actual_value=actual_value, page=step_identifier, **threshold)
                     failed_thresholds.append(failed_threshold)
-                    degradation_info = f" (with {degradation_rate}% tolerance: {adjusted_threshold:.3f})" if degradation_rate else ""
-                    print(f"Threshold: {threshold['scope']} {threshold['target']} value {comparison_value:.3f}"
-                          f" violates rule {comparison} {threshold_value}{degradation_info} [FAILED]")
+                    degradation_info = f" (tolerance: {adjusted_threshold:.3f})" if degradation_rate else ""
+                    print(f"[THRESHOLD] {threshold['scope']} {threshold['target']} = {comparison_value:.3f} "
+                          f"violates {comparison} {threshold_value}{degradation_info} [FAILED]")
                 else:
-                    degradation_info = f" (with {degradation_rate}% tolerance: {adjusted_threshold:.3f})" if degradation_rate else ""
-                    print(f"Threshold: {threshold['scope']} {threshold['target']} value {comparison_value:.3f}"
-                          f" comply with rule {comparison} {threshold_value}{degradation_info} [PASSED]")
+                    degradation_info = f" (tolerance: {adjusted_threshold:.3f})" if degradation_rate else ""
+                    print(f"[THRESHOLD] {threshold['scope']} {threshold['target']} = {comparison_value:.3f} "
+                          f"complies {comparison} {threshold_value}{degradation_info} [PASSED]")
 
     # Load all results for reporting
     all_results = load_all_results_data()
 
-    # Finalize report
-    print(f"\n*********************** Threshold Summary")
-    print(f"Total thresholds evaluated: {total}")
-    print(f"Failed thresholds: {failed}")
-    print(f"***********************\n")
+    print(f"\n===== Threshold Summary =====")
+    print(f"Total evaluated: {total}")
+    print(f"Failed: {failed}")
+    print(f"=============================\n")
     
     time = datetime.now(tz=pytz.timezone("UTC"))
     exception_message = ""
     status = {"status": "Finished", "percentage": 100, "description": "No thresholds configured for this test"}
     if total:
         violated = round(float(failed / total) * 100, 2)
-        print(f"Failed thresholds: {violated}%")
+        print(f"[GATE] Failed rate: {violated}%")
         
-        # Use missed_thresholds from test configuration (no fallback)
         quality_gate_threshold = missed_thresholds_percent
         
-        # Check if quality gate is configured
         if quality_gate_threshold is None or quality_gate_threshold == 0:
             status = {"status": "Finished", "percentage": 100, "description": f"Quality gate not configured. {failed} of {total} thresholds failed ({violated}%)"}
-            print("[QUALITY GATE] Quality gate not configured - test finished without gate evaluation")
-            print(f"[QUALITY GATE] {failed} of {total} thresholds failed ({violated}%)")
+            print(f"[GATE] Quality gate not configured")
+            print(f"[GATE] {failed} of {total} thresholds failed ({violated}%)")
         else:
-            print(f"Quality gate threshold: {quality_gate_threshold}%")
+            print(f"[GATE] Threshold: {quality_gate_threshold}%")
             if violated > quality_gate_threshold:
                 exception_message = f"Failed thresholds rate {violated}% exceeds quality gate {quality_gate_threshold}%"
                 status = {"status": "Failed", "percentage": 100, "description": f"Missed {violated}% thresholds (gate: {quality_gate_threshold}%)"}
@@ -289,13 +269,7 @@ try:
     except Exception:
         print(format_exc())
 
-    # Email notification
-    # try:
-    #     integrations = loads(environ.get("integrations"))
-    # except:
-    #     integrations = None
-
-
+    # Send email notification if configured
     if integrations and integrations.get("reporters") and "reporter_email" in integrations["reporters"].keys():
         email_notification_id = integrations["reporters"]["reporter_email"].get("task_id")
         if email_notification_id:
