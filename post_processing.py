@@ -24,7 +24,8 @@ ENV = environ.get("ENV")
 METRICS_MAPPER = {"load_time": "load_time", "dom": "dom_processing", "tti": "time_to_interactive",
                   "fcp": "first_contentful_paint", "lcp": "largest_contentful_paint",
                   "tbt": "total_blocking_time", "cls": "cumulative_layout_shift",
-                  "fvc": "first_visual_change", "lvc": "last_visual_change"}
+                  "fvc": "first_visual_change", "lvc": "last_visual_change",
+                  "ttfb": "time_to_first_byte", "inp": "interaction_to_next_paint"}
 
 integrations = loads(environ.get("integrations", '{}'))
 s3_config = integrations.get('system', {}).get('s3_integration', {})
@@ -128,7 +129,7 @@ try:
     total = 0
     failed = 0
 
-    metrics_list = ["load_time", "dom", "tti", "fcp", "lcp", "cls", "tbt", "fvc", "lvc"]
+    metrics_list = ["load_time", "dom", "tti", "fcp", "lcp", "cls", "tbt", "fvc", "lvc", "ttfb", "inp"]
 
     upload_test_results(TEST_NAME, URL, PROJECT_ID, TOKEN, REPORT_ID, s3_config)
     file_data = get_summary_file_lines(REPORT_ID)
@@ -148,7 +149,8 @@ try:
             summary_results[each["identifier"]] = {"load_time": [], "dom_processing": [], "time_to_interactive": [],
                                                    "first_contentful_paint": [], "largest_contentful_paint": [],
                                                    "total_blocking_time": [], "cumulative_layout_shift": [],
-                                                   "first_visual_change": [], "last_visual_change": []}
+                                                   "first_visual_change": [], "last_visual_change": [],
+                                                   "time_to_first_byte": [], "interaction_to_next_paint": []}
         for metric in metrics_list:
             if metric == "cls":
                 summary_results[each["identifier"]][METRICS_MAPPER.get(metric)].append(float(each[metric]) if each[metric] else 0.0)
@@ -187,7 +189,7 @@ try:
         )
         
         # Determine which metrics to check based on result type
-        metrics_to_check = ["load_time", "dom", "tti", "fcp", "lcp", "cls", "tbt", "fvc", "lvc"] \
+        metrics_to_check = ["load_time", "dom", "tti", "fcp", "lcp", "cls", "tbt", "fvc", "lvc", "ttfb", "inp"] \
             if result_type == "page" else ["cls", "tbt", "inp"]
         
         # Check each metric
