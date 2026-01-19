@@ -8,6 +8,7 @@ RUN pip3 install --break-system-packages git+https://github.com/carrier-io/loki_
 # Copy scripts into the image
 COPY launch.sh /
 COPY minio_tests_reader.py /
+COPY carrier_logger.py /
 COPY loop_processing.py /
 COPY post_processing.py /
 COPY util.py /
