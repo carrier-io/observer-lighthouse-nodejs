@@ -1,3 +1,4 @@
+from carrier_logger import logger
 from util import is_threshold_failed, get_aggregated_value, upload_test_results, get_summary_file_lines, \
     load_all_results_data
 from os import environ, rename
@@ -36,18 +37,18 @@ try:
     missed_thresholds_percent = None
     try:
         test_config_url = f"{URL}/api/v1/ui_performance/tests/{PROJECT_ID}"
-        print(f"[HTTP REQUEST] {test_config_url}")
+        logger.info(f"[HTTP REQUEST] {test_config_url}")
         test_res = requests.get(
             test_config_url,
             headers={'Authorization': f"bearer {TOKEN}"})
-        print(f"[HTTP RESPONSE] Status: {test_res.status_code}")
+        logger.info(f"[HTTP RESPONSE] Status: {test_res.status_code}")
         
         if test_res.status_code == 200:
             test_data = test_res.json()
             if isinstance(test_data, dict) and 'rows' in test_data:
                 for test in test_data['rows']:
                     if test.get('name') == TEST_NAME:
-                        print(f"[CONFIG] Found configuration for test '{TEST_NAME}'")
+                        logger.info(f"[CONFIG] Found configuration for test '{TEST_NAME}'")
                         integrations_config = test.get('integrations', {})
                         processing_config = integrations_config.get('processing', {})
                         quality_gate_config = processing_config.get('quality_gate', {})
@@ -55,42 +56,42 @@ try:
                         degradation_rate = quality_gate_config.get('degradation_rate')
                         missed_thresholds_percent = quality_gate_config.get('missed_thresholds')
                         
-                        print(f"[CONFIG] Quality gate: degradation_rate={degradation_rate}, missed_thresholds={missed_thresholds_percent}")
+                        logger.info(f"[CONFIG] Quality gate: degradation_rate={degradation_rate}, missed_thresholds={missed_thresholds_percent}")
                         break
                 else:
-                    print(f"[CONFIG] Test '{TEST_NAME}' not found in response")
+                    logger.info(f"[CONFIG] Test '{TEST_NAME}' not found in response")
             else:
-                print(f"[CONFIG] Unexpected response format: {type(test_data)}")
+                logger.info(f"[CONFIG] Unexpected response format: {type(test_data)}")
         else:
-            print(f"[CONFIG] Failed to fetch configuration: status {test_res.status_code}")
+            logger.info(f"[CONFIG] Failed to fetch configuration: status {test_res.status_code}")
     except Exception as e:
-        print(f"[CONFIG] Error: {str(e)}")
-        print(format_exc())
+        logger.info(f"[CONFIG] Error: {str(e)}")
+        logger.info(format_exc())
     
     # Fetch thresholds from API
     res = None
     try:
         threshold_url = f"{URL}/api/v1/ui_performance/thresholds/{PROJECT_ID}?report_id={REPORT_ID}"
-        print(f"[HTTP REQUEST] {threshold_url}")
+        logger.info(f"[HTTP REQUEST] {threshold_url}")
         res = requests.get(
             threshold_url,
             headers={'Authorization': f"bearer {TOKEN}"})
-        print(f"[HTTP RESPONSE] Status: {res.status_code}")
+        logger.info(f"[HTTP RESPONSE] Status: {res.status_code}")
     except Exception as e:
-        print(f"[HTTP ERROR] Exception during request: {str(e)}")
-        print(format_exc())
+        logger.info(f"[HTTP ERROR] Exception during request: {str(e)}")
+        logger.info(format_exc())
 
     if not res or res.status_code != 200:
         if res:
-            print(f"[THRESHOLDS] API returned status: {res.status_code}")
+            logger.info(f"[THRESHOLDS] API returned status: {res.status_code}")
             if res.status_code == 403:
-                print(f"[THRESHOLDS] Access forbidden - check token permissions")
+                logger.info(f"[THRESHOLDS] Access forbidden - check token permissions")
             elif res.status_code == 404:
-                print(f"[THRESHOLDS] Report not found")
+                logger.info(f"[THRESHOLDS] Report not found")
             if res.text:
-                print(f"[THRESHOLDS] Response: {res.text[:500]}")
+                logger.info(f"[THRESHOLDS] Response: {res.text[:500]}")
         else:
-            print(f"[THRESHOLDS] No response from API")
+            logger.info(f"[THRESHOLDS] No response from API")
         thresholds = []
     else:
         try:
@@ -98,29 +99,29 @@ try:
             # Handle response format: could be a dict with 'rows' or a list
             if isinstance(response_data, dict) and 'rows' in response_data:
                 thresholds = response_data['rows']
-                print(f"[THRESHOLDS] Fetched {len(thresholds)} thresholds from API (dict with 'rows')")
+                logger.info(f"[THRESHOLDS] Fetched {len(thresholds)} thresholds from API (dict with 'rows')")
             elif isinstance(response_data, list):
                 thresholds = response_data
-                print(f"[THRESHOLDS] Fetched {len(thresholds)} thresholds from API (list)")
+                logger.info(f"[THRESHOLDS] Fetched {len(thresholds)} thresholds from API (list)")
             else:
                 thresholds = []
-                print(f"[THRESHOLDS] Unexpected response format: {type(response_data)}")
+                logger.info(f"[THRESHOLDS] Unexpected response format: {type(response_data)}")
         except ValueError:
             thresholds = []
-            print(f"[THRESHOLDS] Failed to parse JSON response")
+            logger.info(f"[THRESHOLDS] Failed to parse JSON response")
     
     # Filter thresholds by test name and environment (like reference implementation)
     filtered_thresholds = [
         th for th in thresholds
         if th.get('test') == TEST_NAME and th.get('environment') == ENV
     ]
-    print(f"[THRESHOLDS] Filtered to {len(filtered_thresholds)} for test='{TEST_NAME}', env='{ENV}'")
+    logger.info(f"[THRESHOLDS] Filtered to {len(filtered_thresholds)} for test='{TEST_NAME}', env='{ENV}'")
     thresholds = filtered_thresholds
 
-    print("\n===== Thresholds =====")
+    logger.info("\n===== Thresholds =====")
     for each in thresholds:
-        print(each)
-    print("======================\n")
+        logger.info(each)
+    logger.info("======================\n")
 
     failed_thresholds = []
     total = 0
@@ -154,9 +155,9 @@ try:
             else:
                 summary_results[each["identifier"]][METRICS_MAPPER.get(metric)].append(int(each[metric]) if each[metric] else 0)
 
-    print("\n===== Summary Results =====")
-    print(summary_results)
-    print("===========================\n")
+    logger.info("\n===== Summary Results =====")
+    logger.info(summary_results)
+    logger.info("===========================\n")
     
     # Group thresholds by scope
     thresholds_grouped = {}
@@ -217,36 +218,36 @@ try:
                     failed_threshold = dict(actual_value=actual_value, page=step_identifier, **threshold)
                     failed_thresholds.append(failed_threshold)
                     degradation_info = f" (tolerance: {adjusted_threshold:.3f})" if degradation_rate else ""
-                    print(f"[THRESHOLD] {threshold['scope']} {threshold['target']} = {comparison_value:.3f} "
+                    logger.info(f"[THRESHOLD] {threshold['scope']} {threshold['target']} = {comparison_value:.3f} "
                           f"violates {comparison} {threshold_value}{degradation_info} [FAILED]")
                 else:
                     degradation_info = f" (tolerance: {adjusted_threshold:.3f})" if degradation_rate else ""
-                    print(f"[THRESHOLD] {threshold['scope']} {threshold['target']} = {comparison_value:.3f} "
+                    logger.info(f"[THRESHOLD] {threshold['scope']} {threshold['target']} = {comparison_value:.3f} "
                           f"complies {comparison} {threshold_value}{degradation_info} [PASSED]")
 
     # Load all results for reporting
     all_results = load_all_results_data()
 
-    print(f"\n===== Threshold Summary =====")
-    print(f"Total evaluated: {total}")
-    print(f"Failed: {failed}")
-    print(f"=============================\n")
+    logger.info(f"\n===== Threshold Summary =====")
+    logger.info(f"Total evaluated: {total}")
+    logger.info(f"Failed: {failed}")
+    logger.info(f"=============================\n")
     
     time = datetime.now(tz=pytz.timezone("UTC"))
     exception_message = ""
     status = {"status": "Finished", "percentage": 100, "description": "No thresholds configured for this test"}
     if total:
         violated = round(float(failed / total) * 100, 2)
-        print(f"[GATE] Failed rate: {violated}%")
+        logger.info(f"[GATE] Failed rate: {violated}%")
         
         quality_gate_threshold = missed_thresholds_percent
         
         if quality_gate_threshold is None or quality_gate_threshold == 0:
             status = {"status": "Finished", "percentage": 100, "description": f"Quality gate not configured. {failed} of {total} thresholds failed ({violated}%)"}
-            print(f"[GATE] Quality gate not configured")
-            print(f"[GATE] {failed} of {total} thresholds failed ({violated}%)")
+            logger.info(f"[GATE] Quality gate not configured")
+            logger.info(f"[GATE] {failed} of {total} thresholds failed ({violated}%)")
         else:
-            print(f"[GATE] Threshold: {quality_gate_threshold}%")
+            logger.info(f"[GATE] Threshold: {quality_gate_threshold}%")
             if violated > quality_gate_threshold:
                 exception_message = f"Failed thresholds rate {violated}% exceeds quality gate {quality_gate_threshold}%"
                 status = {"status": "Failed", "percentage": 100, "description": f"Missed {violated}% thresholds (gate: {quality_gate_threshold}%)"}
@@ -267,7 +268,7 @@ try:
         requests.put(f"{URL}/api/v1/ui_performance/reports/{PROJECT_ID}", json=report_data,
                      headers={'Authorization': f"Bearer {TOKEN}", 'Content-type': 'application/json'})
     except Exception:
-        print(format_exc())
+        logger.info(format_exc())
 
     # Send email notification if configured
     if integrations and integrations.get("reporters") and "reporter_email" in integrations["reporters"].keys():
@@ -297,7 +298,7 @@ try:
 
                 res = requests.post(task_url, json=event, headers={'Authorization': f'bearer {TOKEN}',
                                                                    'Content-type': 'application/json'})
-                print(res)
+                logger.info(res)
 
 
     if integrations and integrations.get("reporters") and "reporter_engagement" in integrations['reporters'].keys():
@@ -320,4 +321,4 @@ try:
             reporter.report_findings(failed_thresholds)
 
 except Exception:
-    print(format_exc())
+    logger.info(format_exc())
