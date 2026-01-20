@@ -1,13 +1,9 @@
+from carrier_logger import logger
 from util import update_summary_file, all_results_file_exist, load_all_results_data, dump_all_results_data
 from os import environ, rename, listdir, path
-import logging
 import requests
 from json import loads
 from datetime import datetime
-
-# Initialize logging
-logger = logging.getLogger()
-logging.basicConfig(level=logging.INFO)
 
 # Environment variables
 env_vars = [
