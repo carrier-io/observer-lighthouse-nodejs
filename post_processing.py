@@ -68,10 +68,29 @@ try:
         logger.error(f"Error fetching test configuration: {str(e)}")
         logger.debug(format_exc())
     
+    # Fetch environment from report
+    try:
+        report_url = f"{URL}/api/v1/ui_performance/reports/{PROJECT_ID}?report_id={REPORT_ID}"
+        logger.debug(f"Fetching report environment from: {report_url}")
+        report_res = requests.get(
+            report_url,
+            headers={'Authorization': f"bearer {TOKEN}"})
+        logger.debug(f"Report response status: {report_res.status_code}")
+        
+        if report_res.status_code == 200:
+            report_data = report_res.json()
+            ENV = report_data.get('environment')
+            logger.info(f"Retrieved environment from report: {ENV}")
+        else:
+            logger.warning(f"Failed to fetch report environment: HTTP {report_res.status_code}")
+    except Exception as e:
+        logger.error(f"Error fetching report environment: {str(e)}")
+        logger.debug(format_exc())
+
     # Fetch thresholds from API
     res = None
     try:
-        threshold_url = f"{URL}/api/v1/ui_performance/thresholds/{PROJECT_ID}?report_id={REPORT_ID}"
+        threshold_url = f"{URL}/api/v1/ui_performance/thresholds/{PROJECT_ID}?test={TEST_NAME}&env={ENV}"
         logger.debug(f"Fetching thresholds from: {threshold_url}")
         res = requests.get(
             threshold_url,
@@ -110,13 +129,7 @@ try:
             thresholds = []
             logger.error(f"Failed to parse JSON response from thresholds API")
     
-    # Filter thresholds by test name and environment (like reference implementation)
-    filtered_thresholds = [
-        th for th in thresholds
-        if th.get('test') == TEST_NAME and th.get('environment') == ENV
-    ]
-    logger.info(f"Filtered to {len(filtered_thresholds)} thresholds for test='{TEST_NAME}', env='{ENV}'")
-    thresholds = filtered_thresholds
+    logger.info(f"Fetched {len(thresholds)} thresholds for test='{TEST_NAME}', env='{ENV}'")
 
     logger.debug("===== Thresholds =====")
     for each in thresholds:
