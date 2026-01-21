@@ -5,7 +5,6 @@ from json import loads
 from traceback import format_exc
 from carrier_logger import logger
 
-# Environment variables
 PROJECT_ID = environ.get('GALLOPER_PROJECT_ID')
 URL = environ.get('GALLOPER_URL')
 BUCKET = environ.get("TESTS_BUCKET")
