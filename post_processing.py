@@ -9,6 +9,7 @@ from datetime import datetime
 import pytz
 import sys
 from engagement_reporter import EngagementReporter
+from junit_reporter import UIPerformanceJUnitReporter
 from time import sleep
 
 PROJECT_ID = environ.get('GALLOPER_PROJECT_ID')
@@ -137,6 +138,7 @@ try:
     logger.debug("======================")
 
     failed_thresholds = []
+    all_evaluated_thresholds = []
     total = 0
     failed = 0
 
@@ -226,14 +228,25 @@ try:
                 # Convert milliseconds to seconds (except CLS)
                 comparison_value = actual_value if metric_full == 'cumulative_layout_shift' else actual_value / 1000
                 
+                # Create threshold record for reporting
+                threshold_record = dict(
+                    actual_value=actual_value,
+                    page=step_identifier,
+                    adjusted_threshold=adjusted_threshold,
+                    **threshold
+                )
+                
                 if is_threshold_failed(comparison_value, comparison, adjusted_threshold):
                     failed += 1
-                    failed_threshold = dict(actual_value=actual_value, page=step_identifier, **threshold)
-                    failed_thresholds.append(failed_threshold)
+                    threshold_record['status'] = 'failed'
+                    failed_thresholds.append(threshold_record)
+                    all_evaluated_thresholds.append(threshold_record)
                     degradation_info = f" (tolerance: {adjusted_threshold:.3f})" if degradation_rate else ""
                     logger.warning(f"{threshold['scope']} {threshold['target']} = {comparison_value:.3f} "
                           f"violates {comparison} {threshold_value}{degradation_info} [FAILED]")
                 else:
+                    threshold_record['status'] = 'passed'
+                    all_evaluated_thresholds.append(threshold_record)
                     degradation_info = f" (tolerance: {adjusted_threshold:.3f})" if degradation_rate else ""
                     logger.debug(f"{threshold['scope']} {threshold['target']} = {comparison_value:.3f} "
                           f"complies {comparison} {threshold_value}{degradation_info} [PASSED]")
@@ -286,6 +299,44 @@ try:
         logger.error(f"Failed to update report: {e}")
         logger.debug(format_exc())
 
+    # Generate JUnit report only if quality gate is configured
+    if missed_thresholds_percent is not None and missed_thresholds_percent > 0:
+        try:
+            junit_report_path = UIPerformanceJUnitReporter.create_junit_report(
+                all_thresholds=all_evaluated_thresholds,
+                failed_thresholds=failed_thresholds,
+                total_thresholds=total,
+                failed_count=failed,
+                quality_gate_status=status,
+                degradation_rate=degradation_rate,
+                missed_thresholds_percent=missed_thresholds_percent
+            )
+            
+            # Upload JUnit report to artifacts
+            if junit_report_path:
+                try:
+                    bucket = TEST_NAME.replace("_", "").lower()
+                    upload_url = f"{URL}/api/v1/artifacts/artifacts/{PROJECT_ID}/{bucket}"
+                    headers = {'Authorization': f'bearer {TOKEN}'}
+                    with open(junit_report_path, 'rb') as f:
+                        files = {'file': f}
+                        upload_response = requests.post(
+                            upload_url, 
+                            params=s3_config, 
+                            allow_redirects=True, 
+                            files=files, 
+                            headers=headers
+                        )
+                    logger.info(f"JUnit report uploaded to {upload_url}, Status: {upload_response.status_code}")
+                except Exception as upload_error:
+                    logger.error(f"Failed to upload JUnit report: {str(upload_error)}")
+                    logger.debug(format_exc())
+        except Exception as e:
+            logger.error(f"Failed to create JUnit report: {str(e)}")
+            logger.debug(format_exc())
+    else:
+        logger.info(f"Quality gate not configured - JUnit report generation skipped")
+
     # Send email notification if configured
     if integrations and integrations.get("reporters") and "reporter_email" in integrations["reporters"].keys():
         email_notification_id = integrations["reporters"]["reporter_email"].get("task_id")
@@ -317,7 +368,6 @@ try:
                                                                    'Content-type': 'application/json'})
                 logger.info(f"Email notification sent: {res.status_code}")
                 logger.debug(f"Email response: {res.text}")
-
 
     if integrations and integrations.get("reporters") and "reporter_engagement" in integrations['reporters'].keys():
         if URL and TOKEN and PROJECT_ID and failed_thresholds:
