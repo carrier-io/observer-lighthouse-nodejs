@@ -21,8 +21,8 @@ class UIPerformanceJUnitReporter:
     }
 
     @staticmethod
-    def create_junit_report(all_thresholds, failed_thresholds, total_thresholds, failed_count, quality_gate_status, 
-                           degradation_rate=None, missed_thresholds_percent=None):
+    def create_junit_report(all_thresholds, failed_thresholds, total_thresholds, failed_count, quality_gate_status,
+                           deviation=None, baseline_deviation=None, missed_thresholds_percent=None):
         """Create JUnit XML report for UI performance test results."""
         test_name = environ.get("JOB_NAME", "UI_Performance_Test")
         report_id = environ.get("REPORT_ID", "unknown")
@@ -46,9 +46,9 @@ class UIPerformanceJUnitReporter:
 
             unit_suffix = f" {unit}" if unit else ""
             system_out = f"Value: {display_value:.2f}{unit_suffix}. Threshold value: {threshold_value:.2f}{unit_suffix}"
-            
-            if degradation_rate and degradation_rate > 0 and adjusted_threshold != threshold_value:
-                system_out += f". Degradation rate: {degradation_rate}% (adj. threshold: {adjusted_threshold:.2f}{unit_suffix})"
+
+            if deviation and deviation > 0 and adjusted_threshold != threshold_value:
+                system_out += f". Deviation: {deviation}% (adj. threshold: {adjusted_threshold:.2f}{unit_suffix})"
             
             if scope == page:
                 testcase_name = f"Threshold for {scope}, target - {target}"

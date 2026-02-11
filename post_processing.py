@@ -34,7 +34,8 @@ s3_config = integrations.get('system', {}).get('s3_integration', {})
 
 try:
     # Fetch test configuration for quality gate settings
-    degradation_rate = None
+    deviation = None
+    baseline_deviation = None
     missed_thresholds_percent = None
     try:
         test_config_url = f"{URL}/api/v1/ui_performance/tests/{PROJECT_ID}"
@@ -53,11 +54,12 @@ try:
                         integrations_config = test.get('integrations', {})
                         processing_config = integrations_config.get('processing', {})
                         quality_gate_config = processing_config.get('quality_gate', {})
-                        
-                        degradation_rate = quality_gate_config.get('degradation_rate')
+
+                        deviation = quality_gate_config.get('deviation')
+                        baseline_deviation = quality_gate_config.get('baseline_deviation')
                         missed_thresholds_percent = quality_gate_config.get('missed_thresholds')
                         
-                        logger.info(f"Quality gate configuration - degradation_rate: {degradation_rate}, missed_thresholds: {missed_thresholds_percent}")
+                        logger.info(f"Quality gate configuration - deviation: {deviation}, baseline_deviation: {baseline_deviation}, missed_thresholds: {missed_thresholds_percent}")
                         break
                 else:
                     logger.warning(f"Test '{TEST_NAME}' not found in configuration response")
@@ -216,10 +218,10 @@ try:
                 threshold_value = threshold.get('value', 0)
                 comparison = threshold.get('comparison', 'lte')
                 
-                # Apply degradation rate tolerance if configured
+                # Apply deviation tolerance if configured
                 adjusted_threshold = threshold_value
-                if degradation_rate is not None and degradation_rate > 0:
-                    tolerance = threshold_value * (degradation_rate / 100.0)
+                if deviation is not None and deviation > 0:
+                    tolerance = threshold_value * (deviation / 100.0)
                     if comparison in ['gte', 'gt']:
                         adjusted_threshold = threshold_value + tolerance
                     elif comparison in ['lte', 'lt']:
@@ -241,13 +243,13 @@ try:
                     threshold_record['status'] = 'failed'
                     failed_thresholds.append(threshold_record)
                     all_evaluated_thresholds.append(threshold_record)
-                    degradation_info = f" (tolerance: {adjusted_threshold:.3f})" if degradation_rate else ""
+                    degradation_info = f" (tolerance: {adjusted_threshold:.3f})" if deviation else ""
                     logger.warning(f"{threshold['scope']} {threshold['target']} = {comparison_value:.3f} "
                           f"violates {comparison} {threshold_value}{degradation_info} [FAILED]")
                 else:
                     threshold_record['status'] = 'passed'
                     all_evaluated_thresholds.append(threshold_record)
-                    degradation_info = f" (tolerance: {adjusted_threshold:.3f})" if degradation_rate else ""
+                    degradation_info = f" (tolerance: {adjusted_threshold:.3f})" if deviation else ""
                     logger.debug(f"{threshold['scope']} {threshold['target']} = {comparison_value:.3f} "
                           f"complies {comparison} {threshold_value}{degradation_info} [PASSED]")
 
@@ -308,7 +310,8 @@ try:
                 total_thresholds=total,
                 failed_count=failed,
                 quality_gate_status=status,
-                degradation_rate=degradation_rate,
+                deviation=deviation,
+                baseline_deviation=baseline_deviation,
                 missed_thresholds_percent=missed_thresholds_percent
             )
             
@@ -361,7 +364,8 @@ try:
                     quality_gate_config = integrations['processing']['quality_gate']
                 else:
                     quality_gate_config = {}
-                event["performance_degradation_rate"] = quality_gate_config.get('degradation_rate')
+                event["deviation"] = quality_gate_config.get('deviation')
+                event["baseline_deviation"] = quality_gate_config.get('baseline_deviation')
                 event["missed_thresholds"] = quality_gate_config.get('missed_thresholds')
 
                 res = requests.post(task_url, json=event, headers={'Authorization': f'bearer {TOKEN}',
