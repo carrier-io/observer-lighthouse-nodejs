@@ -227,6 +227,20 @@ try:
                         logger.debug("INSIDE ACTION TYPE")
                         logger.debug(step["name"])
                         all_results[metric].append(result.get(metric, 0))
+                
+                # Check next step for status (SUCCESS/FAILED)
+                status = "undefined"
+                if index + 1 < len(json_data["steps"]):
+                    next_step = json_data["steps"][index + 1]
+                    if "lhr" in next_step and "gatherMode" in next_step["lhr"]:
+                        if next_step["lhr"]["gatherMode"] == "snapshot":
+                            next_name = next_step.get("name", "")
+                            if next_name.endswith("_SUCCESS"):
+                                status = "SUCCESS"
+                                logger.info(f"Status detected: SUCCESS for {step['name']}")
+                            elif next_name.endswith("_FAILED"):
+                                status = "FAILED"
+                                logger.info(f"Status detected: FAILED for {step['name']}")
 
                 if 'requestedUrl' in step["lhr"]:
                     logger.debug("STEP requestedUrl")
@@ -247,6 +261,7 @@ try:
                     "file_name": f"{file_name.replace('.json', '.html')}#index={index}",
                     "resolution": "auto",
                     "browser_version": browser_version,
+                    "status": status,
                     "thresholds_total": 0,
                     "thresholds_failed": 0,
                     "locators": [],

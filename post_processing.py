@@ -160,6 +160,11 @@ try:
 
     summary_results = {}
     for each in results:
+        # Skip rows with FAILED status
+        if each.get("status") == "FAILED":
+            logger.info(f"Skipping FAILED row: {each.get('identifier', 'unknown')}")
+            continue
+            
         if each["identifier"] not in summary_results.keys():
             summary_results[each["identifier"]] = {"load_time": [], "dom_processing": [], "time_to_interactive": [],
                                                    "first_contentful_paint": [], "largest_contentful_paint": [],

@@ -60,13 +60,14 @@ def upload_file(file_name, file_path, galloper_url, project_id, token, s3_config
 
 def update_summary_file(report_id, records, browser_version="not_set"):
     file_exists = os.path.exists(f"/tmp/{report_id}.csv")
-    header = "timestamp,name,identifier,type,loop,load_time,dom,tti,fcp,lcp,cls,tbt,fvc,lvc,inp,ttfb,file_name,browser_version\n".encode('utf-8')
+    header = "timestamp,name,identifier,type,loop,status,load_time,dom,tti,fcp,lcp,cls,tbt,fvc,lvc,inp,ttfb,file_name,browser_version\n".encode('utf-8')
     with open(f"/tmp/{report_id}.csv", 'ab+') as f:
         if not file_exists:
             f.write(header)
         for each in records:
             f.write(
                 f"{each['metrics']['timestamps']},{each['name']},{each['identifier']},{each['type']},{each['loop']},"
+                f"{each.get('status', 'undefined')},"
                 f"{each['metrics']['load_time']},{each['metrics']['dom_processing']},"
                 f"{each['metrics']['time_to_interactive']},{each['metrics']['first_contentful_paint']},"
                 f"{each['metrics']['largest_contentful_paint']},"
