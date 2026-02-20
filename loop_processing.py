@@ -235,10 +235,11 @@ try:
                     if "lhr" in next_step and "gatherMode" in next_step["lhr"]:
                         if next_step["lhr"]["gatherMode"] == "snapshot":
                             next_name = next_step.get("name", "")
-                            if next_name.endswith("_SUCCESS"):
+                            next_name_upper = next_name.upper()
+                            if next_name_upper.endswith("_SUCCESS"):
                                 status = "SUCCESS"
                                 logger.info(f"Status detected: SUCCESS for {step['name']}")
-                            elif next_name.endswith("_FAILED"):
+                            elif next_name_upper.endswith("_FAILED"):
                                 status = "FAILED"
                                 logger.info(f"Status detected: FAILED for {step['name']}")
 
