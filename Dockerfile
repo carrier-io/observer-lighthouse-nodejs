@@ -1,4 +1,4 @@
-FROM ibombit/lighthouse-puppeteer-chrome:13.1.0-alpine-light
+FROM ibombit/lighthouse-puppeteer-chrome:13.3.0-alpine
 
 # Update packages and install dependencies
 RUN apk update && apk add --no-cache python3 py3-pip git

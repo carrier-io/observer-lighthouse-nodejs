@@ -22,8 +22,8 @@ jobs:
     -
        name: Build
        run: |
-          docker build -t getcarrier/observer-lighthouse-nodejs:latest-alpine_v13.1.0-light .
+          docker build -t getcarrier/observer-lighthouse-nodejs:latest-alpine_v13.3.0 .
     -
        name: Push
        run: |
-         docker push getcarrier/observer-lighthouse-nodejs:latest-alpine_v13.1.0-light
+         docker push getcarrier/observer-lighthouse-nodejs:latest-alpine_v13.3.0
